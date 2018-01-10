@@ -6,17 +6,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.support.SpringBootServletInitializer;
 
-@EnableAutoConfiguration
 @SpringBootApplication
 public class Server extends SpringBootServletInitializer
 {
 	@Override
-	protected SpringApplicationBuilder configure(SpringApplicationBuilder application){
-		return application.sources(Server.class);
-	}
-
-	public static void main(String[] args)
+	protected SpringApplicationBuilder configure(SpringApplicationBuilder applicationBuilder)
 	{
-		SpringApplication.run(Server.class, args);
+		return applicationBuilder.sources(Server.class);//.profiles(System.getProperty("environment"));
 	}
 }

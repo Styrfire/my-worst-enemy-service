@@ -1,0 +1,6 @@
+riot.datasource:
+    dataSourceName: 'riotdbappid'
+    driverClassName: 'com.some.driver'
+    username: 'Riot'
+    password: 'password'
+    url: 'someDatabaseURL'

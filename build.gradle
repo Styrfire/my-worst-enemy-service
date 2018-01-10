@@ -1,22 +1,22 @@
-buildscript {
-	repositories {
-		mavenCentral()
-	}
-	dependencies {
-		classpath("org.springframework.boot:spring-boot-gradle-plugin:1.4.2.RELEASE")
-	}
-}
-
 apply plugin: 'war'
-apply plugin: 'java'
 apply plugin: 'groovy'
 apply plugin: 'eclipse'
 apply plugin: 'idea'
-apply plugin: 'org.springframework.boot'
+
+ext {
+	date = new Date().format("yyMMdd.HHmm")
+	springBootVersion = "1.4.2.RELEASE"
+}
+
+versionNum = "${versionNum.replace("SNAPSHOT", "${date}")}"
 
 war {
+	jar.enabled = false
+	webXml = file("/WEB-INF/web.xml")
 	baseName = 'my-worst-enemy'
-	version =  '0.0.0'
+	manifest {
+		attributes("war-version": versionNum)
+	}
 }
 
 repositories {
@@ -25,18 +25,17 @@ repositories {
 
 dependencies
 {
-	compile fileTree(dir: 'lib', include: 'riot-api-*')
+	compile fileTree(dir: 'lib', include: 'riot-api-1.0.0.jar')
 
-	compile 'com.google.guava:guava:17.0'
-	compile 'com.google.code.gson:gson:2.8.0'
-	compile 'javax.inject:javax.inject:1'
+	compile "com.google.guava:guava:17.0"
+	compile "com.google.code.gson:gson:2.8.0"
+	compile "javax.inject:javax.inject:1"
 	compile "org.codehaus.groovy:groovy-all:2.4.5"
-	compile 'org.springframework.boot:spring-boot-gradle-plugin:1.4.2.RELEASE'
-	compile 'org.springframework.boot:spring-boot-starter-web'
+	compile "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"
 
-	compile 'org.springframework.boot:spring-boot-starter-tomcat'
+	compile "org.springframework.boot:spring-boot-starter-tomcat:${springBootVersion}"
 
-	testCompile 'org.springframework.boot:spring-boot-starter-test'
+	testCompile "org.springframework.boot:spring-boot-starter-test:${springBootVersion}"
 }
 
 task wrapper (type: Wrapper) {
