@@ -23,12 +23,16 @@ repositories {
 	mavenCentral()
 }
 
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
 dependencies
 {
 	compile fileTree(dir: 'lib', include: 'riot-api-1.0.0.jar')
 
 	compile "com.google.guava:guava:17.0"
 	compile "com.google.code.gson:gson:2.8.0"
+	compile "com.zaxxer:HikariCP-java6:2.1.0"
 	compile "javax.inject:javax.inject:1"
 	compile "org.codehaus.groovy:groovy-all:2.4.5"
 	compile "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"
