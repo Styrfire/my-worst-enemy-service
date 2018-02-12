@@ -1,6 +1,5 @@
 package com.myWorstEnemy.web.controller;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.myWorstEnemy.service.domain.SomeList;
@@ -17,13 +16,12 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
-import java.io.InputStreamReader;
 import java.util.*;
 
 @RestController
 public class MyWorstEnemyController
 {
-	private RiotApi api = new RiotApi("RGAPI-6c0990e0-cf38-41c0-886c-f3f25ca50732");
+	private RiotApi api = new RiotApi("RGAPI-bbf37f23-0dc9-4d37-be2a-345235337dd1");
 	private static Logger logger = Logger.getLogger(MyWorstEnemyController.class);
 
 	private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
@@ -122,11 +120,15 @@ public class MyWorstEnemyController
 		int upperBound = 5;
 		if (listOfChampionIds.length < 5)
 			upperBound = listOfChampionIds.length;
+
+//		StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
+
 		JsonArray championJsonArr = new JsonArray();
 		try
 		{
 			for (int i = 0; i < upperBound; i++)
 			{
+//				Champion champion = staticDataService.getStaticChampionInfoById(listOfChampionIds[i]);
 				Champion champion = api.getStaticChampionInfoById(listOfChampionIds[i]);
 				JsonObject championJson = new JsonObject();
 				championJson.addProperty("name", champion.getName());
@@ -167,18 +169,26 @@ public class MyWorstEnemyController
 		return someList.toString();
 	}
 
-	@RequestMapping(method = RequestMethod.GET, value = "/loadChampionTable")
-	public boolean loadChampionTable()
+	@RequestMapping(method = RequestMethod.GET, value = "/loadChampionsTable")
+	public boolean loadChampionsTable()
 	{
 		try
 		{
-			ClassLoader classLoader = getClass().getClassLoader();
-			ChampionList championList = (new Gson()).fromJson(new InputStreamReader(classLoader.getResourceAsStream("json/getStaticChampionData.json")), ChampionList.class);
-			championList.getData().get("154");
+			StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
+			ChampionList championList = api.getStaticChampionInfo();
+			for (Map.Entry<String, Champion> entry : championList.getData().entrySet())
+			{
+				String splashArtUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/splash/" + entry.getValue().getKey() + "_0.jpg";
+				if (!staticDataService.insertIntoChampions(entry.getValue().getId(), entry.getValue().getName(), entry.getValue().getTitle(), entry.getValue().getKey(), splashArtUrl))
+					logger.info("(" + entry.getValue().getId() +", "+ entry.getValue().getName() + ", " + entry.getValue().getTitle() + ", " + entry.getValue().getKey() + ", " + splashArtUrl + ") was not inserted!");
+				else
+					logger.info("(" + entry.getValue().getId() +", "+ entry.getValue().getName() + ", " + entry.getValue().getTitle() + ", " + entry.getValue().getKey() + ", " + splashArtUrl + ") was inserted!");
+			}
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace();
+			return false;
 		}
 
 		return true;

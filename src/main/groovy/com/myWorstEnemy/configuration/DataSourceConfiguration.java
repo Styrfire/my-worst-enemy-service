@@ -34,7 +34,7 @@ public class DataSourceConfiguration
 			{
 				// do fancy stuff for mysql
 				File file = new File("sqlite");
-				String jdbcUrl = "jdbc:sqlite:" + file.getAbsolutePath() + "\\exampledb.db";
+				String jdbcUrl = "jdbc:sqlite:" + file.getAbsolutePath() + "\\" + riotJdbcUrl;
 				jdbcUrl = jdbcUrl.replace("\\", "/");
 
 				dataSource = new HikariDataSource();

@@ -27,16 +27,18 @@ public class StaticDataService
 		this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
 	}
 
-	private static final String SQL_LOOKUP_OBJECT = "SELECT * " +
-	"FROM example";// +
-//	"WHERE COLUMN_NAME = :agentNumber";
+	private static final String SQL_SELECT_ALL_FROM_CHAMPIONS = "SELECT * " +
+			"FROM example";
+
+	private static final String SQL_INSERT_INTO_CHAMPIONS = "INSERT INTO champions " +
+			"VALUES (:id, :name, :title, :key, :splashArtUrl);";
 
 	public List<Example> getExampleInfo()
 	{
 		try
 		{
 			MapSqlParameterSource namedParameters = new MapSqlParameterSource();
-			return namedParameterJdbcTemplate.query(SQL_LOOKUP_OBJECT, namedParameters, new ObjectRowMapper());
+			return namedParameterJdbcTemplate.query(SQL_SELECT_ALL_FROM_CHAMPIONS, namedParameters, new ObjectRowMapper());
 		}
 		catch (DataAccessException e)
 		{
@@ -55,5 +57,17 @@ public class StaticDataService
 			something.setExample2(rs.getInt("example2"));
 			return something;
 		}
+	}
+
+	public boolean insertIntoChampions(Integer id, String name, String title, String key, String splashArtUrl)
+	{
+		MapSqlParameterSource namedParameters = new MapSqlParameterSource();
+		namedParameters.addValue("id", id.toString());
+		namedParameters.addValue("name", name);
+		namedParameters.addValue("title", title);
+		namedParameters.addValue("key", key);
+		namedParameters.addValue("splashArtUrl", splashArtUrl);
+
+		return namedParameterJdbcTemplate.update(SQL_INSERT_INTO_CHAMPIONS, namedParameters) == 1;
 	}
 }
