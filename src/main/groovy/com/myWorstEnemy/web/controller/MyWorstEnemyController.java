@@ -3,22 +3,36 @@ package com.myWorstEnemy.web.controller;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.myWorstEnemy.service.domain.SomeList;
+import com.myWorstEnemy.service.StaticDataService;
 import com.riot.api.RiotApi;
 import com.riot.dto.Match.MatchList;
 import com.riot.dto.StaticData.Champion;
 import com.riot.dto.StaticData.ChampionList;
 import com.riot.dto.Summoner.Summoner;
 import com.riot.exception.RiotApiException;
+import org.apache.log4j.Logger;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import javax.inject.Inject;
 import java.io.InputStreamReader;
 import java.util.*;
 
 @RestController
 public class MyWorstEnemyController
 {
-	private RiotApi api = new RiotApi("RGAPI-f23321ad-32f6-418a-9af3-8a0ff83ecfcf");
+	private RiotApi api = new RiotApi("RGAPI-6c0990e0-cf38-41c0-886c-f3f25ca50732");
+	private static Logger logger = Logger.getLogger(MyWorstEnemyController.class);
+
+	private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+
+	@Inject
+	MyWorstEnemyController(NamedParameterJdbcTemplate namedParameterJdbcTemplate)
+	{
+		this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+	}
 
 	@RequestMapping("/")
 	public String helloWorld()
@@ -49,9 +63,16 @@ public class MyWorstEnemyController
 		{
 			for (int i = 0; i < matchList.getEndIndex(); i++)
 			{
-				if (matchList.getMatches().get(i).getQueue() == 400)
+				int queue = 420;
+				// 400 = draft pick
+				// 420 = ranked solo
+				if (matchList.getMatches().get(i).getQueue() == queue)
 				{
-					System.out.println("index: " + i + " was a ranked game!");
+					if (queue == 400)
+						logger.info("index: " + i + " was a draft game!");
+					else if (queue == 420)
+						logger.info("index: " + i + " was a ranked game!");
+
 					// if champion is in the list
 					if (championGamesMap.containsKey(matchList.getMatches().get(i).getChampion()))
 					{
@@ -135,6 +156,15 @@ public class MyWorstEnemyController
 		// last 10 matches
 		// grade
 		return "Champion id = " + championId;
+	}
+
+	@RequestMapping(method = RequestMethod.GET, value = "/loadExampleTable")
+	public String loadExampleTable()
+	{
+		StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
+		SomeList someList = new SomeList();
+		someList.setExampleList(staticDataService.getExampleInfo());
+		return someList.toString();
 	}
 
 	@RequestMapping(method = RequestMethod.GET, value = "/loadChampionTable")

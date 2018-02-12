@@ -34,11 +34,12 @@ dependencies
 	compile "com.google.code.gson:gson:2.8.0"
 	compile "com.zaxxer:HikariCP-java6:2.1.0"
 	compile "javax.inject:javax.inject:1"
+	compile "mysql:mysql-connector-java:6.0.2" // mysql db driver
 	compile "org.codehaus.groovy:groovy-all:2.4.5"
 	compile "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"
-//	compile "org.springframework.boot:spring-boot-starter-jdbc:${springBootVersion}"
-
+	compile "org.springframework.boot:spring-boot-starter-jdbc:${springBootVersion}"
 	compile "org.springframework.boot:spring-boot-starter-tomcat:${springBootVersion}"
+	compile "org.xerial:sqlite-jdbc:3.21.0" // sqlite db driver
 
 	testCompile "org.springframework.boot:spring-boot-starter-test:${springBootVersion}"
 }

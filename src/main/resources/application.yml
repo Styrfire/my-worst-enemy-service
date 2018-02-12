@@ -1,6 +1,16 @@
+# mysql datasource info
+#riot.datasource:
+#    dataSourceName: 'riotdbappid'
+#    driverClassName: 'com.mysql.cj.jdbc.Driver'
+#    username: 'Styrfire'
+#    password: 'bga6+pEEHd#EY3?S'
+#    url: 'jdbc:mysql://riotstaticdatadb.cdfpu262rtej.us-east-1.rds.amazonaws.com:3306'
+
+# sqlite datasource info
 riot.datasource:
     dataSourceName: 'riotdbappid'
-    driverClassName: 'com.some.driver'
-    username: 'Riot'
-    password: 'password'
-    url: 'someDatabaseURL'
+    driverClassName: 'org.sqlite.JDBC'
+    username: ''
+    password: ''
+    url: 'jdbc:sqlite:exampledb.db'
+#    url: 'jdbc:sqlite:riotstaticdatadb.db'
