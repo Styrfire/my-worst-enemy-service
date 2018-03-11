@@ -2,11 +2,11 @@ package com.myWorstEnemy.web.controller;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.myWorstEnemy.service.domain.Champion;
 import com.myWorstEnemy.service.domain.SomeList;
 import com.myWorstEnemy.service.StaticDataService;
 import com.riot.api.RiotApi;
 import com.riot.dto.Match.MatchList;
-import com.riot.dto.StaticData.Champion;
 import com.riot.dto.StaticData.ChampionList;
 import com.riot.dto.Summoner.Summoner;
 import com.riot.exception.RiotApiException;
@@ -21,7 +21,7 @@ import java.util.*;
 @RestController
 public class MyWorstEnemyController
 {
-	private RiotApi api = new RiotApi("RGAPI-bbf37f23-0dc9-4d37-be2a-345235337dd1");
+	private RiotApi api = new RiotApi("RGAPI-f551d442-faa3-400f-a818-5728c55f66ed");
 	private static Logger logger = Logger.getLogger(MyWorstEnemyController.class);
 
 	private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
@@ -121,24 +121,24 @@ public class MyWorstEnemyController
 		if (listOfChampionIds.length < 5)
 			upperBound = listOfChampionIds.length;
 
-//		StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
+		StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
 
 		JsonArray championJsonArr = new JsonArray();
 		try
 		{
 			for (int i = 0; i < upperBound; i++)
 			{
-//				Champion champion = staticDataService.getStaticChampionInfoById(listOfChampionIds[i]);
-				Champion champion = api.getStaticChampionInfoById(listOfChampionIds[i]);
+				Champion champion = staticDataService.getChampionById(listOfChampionIds[i]);
 				JsonObject championJson = new JsonObject();
 				championJson.addProperty("name", champion.getName());
 				championJson.addProperty("title", champion.getTitle());
-				championJson.addProperty("key", champion.getKey());
+				championJson.addProperty("splashArtUrl", champion.getSplashArtUrl().replaceAll("splash", "loading"));
 				championJson.addProperty("id", champion.getId());
 				championJson.addProperty("numOfGames", listOfChampionNumOfGames[i]);
 				championJsonArr.add(championJson);
 			}
-		} catch (RiotApiException e)
+		}
+		catch (Exception e)
 		{
 			System.out.println(e.getMessage());
 			return e.getMessage();
@@ -176,9 +176,10 @@ public class MyWorstEnemyController
 		{
 			StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
 			ChampionList championList = api.getStaticChampionInfo();
-			for (Map.Entry<String, Champion> entry : championList.getData().entrySet())
+			for (Map.Entry<String, com.riot.dto.StaticData.Champion> entry : championList.getData().entrySet())
 			{
-				String splashArtUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/splash/" + entry.getValue().getKey() + "_0.jpg";
+//				String splashArtUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/splash/" + entry.getValue().getKey() + "_0.jpg";
+				String splashArtUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/" + entry.getValue().getKey() + "_0.jpg";
 				if (!staticDataService.insertIntoChampions(entry.getValue().getId(), entry.getValue().getName(), entry.getValue().getTitle(), entry.getValue().getKey(), splashArtUrl))
 					logger.info("(" + entry.getValue().getId() +", "+ entry.getValue().getName() + ", " + entry.getValue().getTitle() + ", " + entry.getValue().getKey() + ", " + splashArtUrl + ") was not inserted!");
 				else

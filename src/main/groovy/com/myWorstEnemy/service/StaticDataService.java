@@ -1,5 +1,6 @@
 package com.myWorstEnemy.service;
 
+import com.myWorstEnemy.service.domain.Champion;
 import com.myWorstEnemy.service.domain.Example;
 import org.apache.log4j.Logger;
 import org.springframework.context.annotation.Lazy;
@@ -33,12 +34,15 @@ public class StaticDataService
 	private static final String SQL_INSERT_INTO_CHAMPIONS = "INSERT INTO champions " +
 			"VALUES (:id, :name, :title, :key, :splashArtUrl);";
 
+	private static final String SQL_SELECT_CHAMPION_BY_ID = "SELECT * FROM champions " +
+			"WHERE id = :id;";
+
 	public List<Example> getExampleInfo()
 	{
 		try
 		{
 			MapSqlParameterSource namedParameters = new MapSqlParameterSource();
-			return namedParameterJdbcTemplate.query(SQL_SELECT_ALL_FROM_CHAMPIONS, namedParameters, new ObjectRowMapper());
+			return namedParameterJdbcTemplate.query(SQL_SELECT_ALL_FROM_CHAMPIONS, namedParameters, new ExampleRowMapper());
 		}
 		catch (DataAccessException e)
 		{
@@ -47,7 +51,7 @@ public class StaticDataService
 		}
 	}
 
-	public class ObjectRowMapper implements RowMapper<Example>
+	public class ExampleRowMapper implements RowMapper<Example>
 	{
 		@Override
 		public Example mapRow(ResultSet rs, int rowNum) throws SQLException
@@ -69,5 +73,28 @@ public class StaticDataService
 		namedParameters.addValue("splashArtUrl", splashArtUrl);
 
 		return namedParameterJdbcTemplate.update(SQL_INSERT_INTO_CHAMPIONS, namedParameters) == 1;
+	}
+
+	public Champion getChampionById(Integer id)
+	{
+		MapSqlParameterSource namedParameters = new MapSqlParameterSource();
+		namedParameters.addValue("id", id.toString());
+
+		return namedParameterJdbcTemplate.queryForObject(SQL_SELECT_CHAMPION_BY_ID, namedParameters, new ChampionRowMapper());
+	}
+
+	public class ChampionRowMapper implements RowMapper<Champion>
+	{
+		@Override
+		public Champion mapRow(ResultSet rs, int rowNum) throws SQLException
+		{
+			Champion something = new Champion();
+			something.setId(rs.getInt("id"));
+			something.setName(rs.getString("name"));
+			something.setTitle(rs.getString("title"));
+			something.setSplashArtUrl(rs.getString("splash_art_url"));
+
+			return something;
+		}
 	}
 }
