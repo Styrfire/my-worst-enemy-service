@@ -18,10 +18,11 @@ import org.springframework.web.bind.annotation.*;
 import javax.inject.Inject;
 import java.util.*;
 
+@CrossOrigin(origins = "*")
 @RestController
 public class MyWorstEnemyController
 {
-	private RiotApi api = new RiotApi("RGAPI-f551d442-faa3-400f-a818-5728c55f66ed");
+	private RiotApi api = new RiotApi("RGAPI-541ffe90-4364-463b-ba56-ba2782b9e108");
 	private static Logger logger = Logger.getLogger(MyWorstEnemyController.class);
 
 	private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
@@ -38,7 +39,6 @@ public class MyWorstEnemyController
 		return "Hello world!";
 	}
 
-	@CrossOrigin(origins = "*")
 	@RequestMapping(method = RequestMethod.GET, value = "/topFiveChampions/{summonerName}", produces=MediaType.APPLICATION_JSON_VALUE)
 	public String topFiveChampions(@PathVariable String summonerName)
 	{
@@ -140,7 +140,7 @@ public class MyWorstEnemyController
 		}
 		catch (Exception e)
 		{
-			System.out.println(e.getMessage());
+			e.printStackTrace();
 			return e.getMessage();
 		}
 
@@ -152,12 +152,13 @@ public class MyWorstEnemyController
 		return topFiveChampions.toString();
 	}
 
-	@RequestMapping(method = RequestMethod.GET, value = "/selectedChampion/{championId}")
+	@RequestMapping(method = RequestMethod.GET, value = "/selectedChampion/{championId}", produces=MediaType.APPLICATION_JSON_VALUE)
 	public String selectedChampion(@PathVariable String championId)
 	{
 		// last 10 matches
 		// grade
-		return "Champion id = " + championId;
+		logger.info("{\"championId\":\"" + championId + "\"}");
+		return "{\"championId\":\"" + championId + "\"}";
 	}
 
 	@RequestMapping(method = RequestMethod.GET, value = "/loadExampleTable")

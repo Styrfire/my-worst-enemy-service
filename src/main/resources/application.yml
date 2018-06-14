@@ -12,5 +12,5 @@ riot.datasource:
     driverClassName: 'org.sqlite.JDBC'
     username: ''
     password: ''
-    url: 'riotstaticdatadb.db'
+    url: 'sqlite/riotstaticdatadb.db'
 #    url: 'exampledb.db'

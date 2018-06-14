@@ -12,6 +12,6 @@ public class Server extends SpringBootServletInitializer
 	@Override
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder applicationBuilder)
 	{
-		return applicationBuilder.sources(Server.class).profiles(System.getProperty("environment"));
+		return applicationBuilder.sources(Server.class);
 	}
 }

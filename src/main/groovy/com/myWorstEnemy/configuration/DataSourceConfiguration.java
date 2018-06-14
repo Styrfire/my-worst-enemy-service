@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
-import java.io.File;
 
 @Configuration
 public class DataSourceConfiguration
@@ -32,15 +31,9 @@ public class DataSourceConfiguration
 			HikariDataSource dataSource;
 			try
 			{
-				// do fancy stuff for mysql
-				File file = new File("sqlite");
-				String jdbcUrl = "jdbc:sqlite:" + file.getAbsolutePath() + "\\" + riotJdbcUrl;
-				jdbcUrl = jdbcUrl.replace("\\", "/");
-
 				dataSource = new HikariDataSource();
 				dataSource.setDriverClassName(riotDriverClassName);
-				dataSource.setJdbcUrl(jdbcUrl);
-//				dataSource.setJdbcUrl(riotJdbcUrl); // jdbc Url for actual data source
+				dataSource.setJdbcUrl("jdbc:sqlite::resource:" + riotJdbcUrl);
 				dataSource.setUsername(riotUsername);
 				dataSource.setPassword(riotPassword);
 

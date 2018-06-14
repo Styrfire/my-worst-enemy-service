@@ -5,7 +5,7 @@ apply plugin: 'idea'
 
 ext {
 	date = new Date().format("yyMMdd.HHmm")
-	springBootVersion = "1.4.2.RELEASE"
+	springBootVersion = "1.5.0.RELEASE"
 }
 
 versionNum = "${versionNum.replace("SNAPSHOT", "${date}")}"
