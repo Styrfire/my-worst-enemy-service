@@ -6,6 +6,7 @@ import com.myWorstEnemy.service.domain.Champion;
 import com.myWorstEnemy.service.domain.SomeList;
 import com.myWorstEnemy.service.StaticDataService;
 import com.riot.api.RiotApi;
+import com.riot.dto.Match.Match;
 import com.riot.dto.Match.MatchList;
 import com.riot.dto.StaticData.ChampionList;
 import com.riot.dto.Summoner.Summoner;
@@ -22,7 +23,7 @@ import java.util.*;
 @RestController
 public class MyWorstEnemyController
 {
-	private RiotApi api = new RiotApi("RGAPI-541ffe90-4364-463b-ba56-ba2782b9e108");
+	private RiotApi api = new RiotApi("RGAPI-2254d03f-dacd-4ce6-8ac7-2818160502c2");
 	private static Logger logger = Logger.getLogger(MyWorstEnemyController.class);
 
 	private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
@@ -152,13 +153,80 @@ public class MyWorstEnemyController
 		return topFiveChampions.toString();
 	}
 
-	@RequestMapping(method = RequestMethod.GET, value = "/selectedChampion/{championId}", produces=MediaType.APPLICATION_JSON_VALUE)
-	public String selectedChampion(@PathVariable String championId)
+	@RequestMapping(method = RequestMethod.GET, value = "/selectedChampion/{summonerName}/{championId}", produces=MediaType.APPLICATION_JSON_VALUE)
+	public String selectedChampion(@PathVariable String summonerName, @PathVariable int championId)
 	{
-		// last 10 matches
-		// grade
-		logger.info("{\"championId\":\"" + championId + "\"}");
-		return "{\"championId\":\"" + championId + "\"}";
+		Summoner summoner;
+		MatchList matchList;
+		try
+		{
+			summoner = api.getSummonerByName(summonerName.replace('+', ' '));
+
+			// get ranked stats by summoner name
+			matchList = api.getMatchListByAccountId(summoner.getAccountId());
+		} catch (RiotApiException e)
+		{
+			System.out.println(e.getMessage());
+			return e.getMessage();
+		}
+
+		Match match = new Match();
+		if (matchList != null)
+		{
+			for (int i = 0; i < matchList.getEndIndex(); i++)
+			{
+				int queue = 420;
+				// 400 = draft pick
+				// 420 = ranked solo
+				if ((matchList.getMatches().get(i).getQueue() == queue) && (matchList.getMatches().get(i).getChampion() == championId))
+				{
+					if (queue == 400)
+						logger.info("index: " + i + " was a draft game!");
+					else if (queue == 420)
+						logger.info("index: " + i + " was a ranked game!");
+
+//					try
+//					{
+//						match = api.getMatchByMatchId(matchList.getMatches().get(i).getGameId());
+//					}
+//					catch (RiotApiException e)
+//					{
+//						e.printStackTrace();
+//						return e.getMessage();
+//					}
+				}
+			}
+		} else
+			System.out.println("matchList is null!");
+
+		return "{\n" +
+		"  \"selectedChampionName\": \"Zac\",\n" +
+		"  \"selectedChampionTitle\": \"the Secret Weapon\",\n" +
+		"  \"enemyChampions\": [{\n" +
+		"    \"name\": \"Vayne\",\n" +
+		"    \"title\": \"the Night Hunter\",\n" +
+		"    \"iconUrl\": \"http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Vayne.png\",\n" +
+		"    \"numOfBans\": 22,\n" +
+		"    \"numOfGames\": 9,\n" +
+		"    \"numOfLosses\": 8\n" +
+		"  },\n" +
+		"  {\n" +
+		"    \"name\": \"Vayne\",\n" +
+		"    \"title\": \"the Night Hunter\",\n" +
+		"    \"iconUrl\": \"http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Vayne.png\",\n" +
+		"    \"numOfBans\": 22,\n" +
+		"    \"numOfGames\": 9,\n" +
+		"    \"numOfLosses\": 8\n" +
+		"  },\n" +
+		"  {\n" +
+		"    \"name\": \"Vayne\",\n" +
+		"    \"title\": \"the Night Hunter\",\n" +
+		"    \"iconUrl\": \"http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Vayne.png\",\n" +
+		"    \"numOfBans\": 22,\n" +
+		"    \"numOfGames\": 9,\n" +
+		"    \"numOfLosses\": 8\n" +
+		"  }]\n" +
+		"}";
 	}
 
 	@RequestMapping(method = RequestMethod.GET, value = "/loadExampleTable")
