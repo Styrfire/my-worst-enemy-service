@@ -2,7 +2,8 @@ package com.myWorstEnemy.service;
 
 import com.myWorstEnemy.service.domain.Champion;
 import com.myWorstEnemy.service.domain.Example;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.RowMapper;
@@ -20,7 +21,7 @@ import java.util.List;
 public class StaticDataService
 {
 	private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-	private static Logger log = Logger.getLogger(StaticDataService.class);
+	private static Logger log = LoggerFactory.getLogger(StaticDataService.class);
 
 	@Inject
 	public StaticDataService(NamedParameterJdbcTemplate namedParameterJdbcTemplate)

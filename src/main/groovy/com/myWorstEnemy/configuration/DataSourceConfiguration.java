@@ -1,7 +1,6 @@
 package com.myWorstEnemy.configuration;
 
 import com.zaxxer.hikari.HikariDataSource;
-import org.apache.log4j.Logger;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -12,8 +11,6 @@ import javax.sql.DataSource;
 @Configuration
 public class DataSourceConfiguration
 {
-	private static Logger logger = Logger.getLogger(DataSourceConfiguration.class);
-
 	@Configuration
 	protected static class LocalDataSourceConfiguration
 	{
