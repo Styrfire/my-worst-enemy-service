@@ -23,6 +23,7 @@ repositories {
 }
 
 sourceCompatibility = 1.8
+targetCompatibility = 1.8
 
 dependencies
 {
@@ -35,6 +36,7 @@ dependencies
 	compile "mysql:mysql-connector-java:6.0.2" // mysql db driver
 	compile "org.codehaus.groovy:groovy-all:2.4.5"
 	compile "org.springframework.boot:spring-boot-actuator:${springBootVersion}"
+	compile "org.springframework.boot:spring-boot-starter:${springBootVersion}"
 	compile "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"
 	compile "org.springframework.boot:spring-boot-starter-jdbc:${springBootVersion}"
 	compile "org.springframework.boot:spring-boot-starter-tomcat:${springBootVersion}"
@@ -44,6 +46,7 @@ dependencies
 }
 
 wrapper {
+	description = "Generates gradlew[.bat] scripts"
 	gradleVersion = '5.4.1'
 	distributionType = Wrapper.DistributionType.ALL
 }

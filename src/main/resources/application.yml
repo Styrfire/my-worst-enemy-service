@@ -14,3 +14,7 @@ riot.datasource:
     password: ''
     url: 'sqlite/riotstaticdatadb.db'
 #    url: 'exampledb.db'
+
+#400 = draft pick
+#420 = ranked solo
+queue: 420

@@ -34,6 +34,9 @@ public class MyWorstEnemyController
 	@Value("${myWorstEnemy.useMock:false}")
 	private Boolean useMock;
 
+	@Value("${queue}")
+	int queue;
+
 	@Inject
 	MyWorstEnemyController(NamedParameterJdbcTemplate namedParameterJdbcTemplate)
 	{
@@ -70,9 +73,6 @@ public class MyWorstEnemyController
 			{
 				for (int i = 0; i < matchList.getEndIndex(); i++)
 				{
-					int queue = 420;
-					// 400 = draft pick
-					// 420 = ranked solo
 					if (matchList.getMatches().get(i).getQueue() == queue)
 					{
 						if (queue == 400)
@@ -220,9 +220,6 @@ public class MyWorstEnemyController
 			{
 				for (int i = 0; i < matchList.getEndIndex(); i++)
 				{
-					int queue = 420;
-					// 400 = draft pick
-					// 420 = ranked solo
 					if ((matchList.getMatches().get(i).getQueue() == queue) && (matchList.getMatches().get(i).getChampion() == championId))
 					{
 						if (queue == 400)
@@ -230,15 +227,15 @@ public class MyWorstEnemyController
 						else if (queue == 420)
 							logger.info("index: " + i + " was a ranked game!");
 
-//						try
-//						{
-//							match = api.getMatchByMatchId(matchList.getMatches().get(i).getGameId());
-//						}
-//						catch (RiotApiException e)
-//						{
-//							e.printStackTrace();
-//							return e.getMessage();
-//						}
+						try
+						{
+							match = api.getMatchByMatchId(matchList.getMatches().get(i).getGameId());
+						}
+						catch (RiotApiException e)
+						{
+							e.printStackTrace();
+							return e.getMessage();
+						}
 					}
 				}
 			} else
@@ -405,6 +402,13 @@ public class MyWorstEnemyController
 			logger.info("selected champion results: " + championJson.toString());
 			return championJson.toString();
 		}
+	}
+
+	@RequestMapping(method = RequestMethod.GET, value = "/getTeamData")
+	public String getTeamData()
+	{
+
+		return null;
 	}
 
 	@RequestMapping(method = RequestMethod.GET, value = "/loadExampleTable")
