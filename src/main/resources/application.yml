@@ -1,0 +1,20 @@
+# mysql datasource info
+#riot.datasource:
+#    dataSourceName: 'riotdbappid'
+#    driverClassName: 'com.mysql.cj.jdbc.Driver'
+#    username: 'Styrfire'
+#    password: 'bga6+pEEHd#EY3?S'
+#    url: 'jdbc:mysql://riotstaticdatadb.cdfpu262rtej.us-east-1.rds.amazonaws.com:3306'
+
+# sqlite datasource info
+riot.datasource:
+    dataSourceName: 'riotdbappid'
+    driverClassName: 'org.sqlite.JDBC'
+    username: ''
+    password: ''
+    url: 'sqlite/riotstaticdatadb.db'
+#    url: 'exampledb.db'
+
+#400 = draft pick
+#420 = ranked solo
+queue: 420

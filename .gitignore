@@ -1,3 +1,6 @@
-.gradle
-.idea
-out
+build/
+out/
+.gradle/
+.idea/
+*.iml
+version.txt
