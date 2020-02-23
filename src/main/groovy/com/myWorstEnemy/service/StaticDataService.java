@@ -64,13 +64,13 @@ public class StaticDataService
 		}
 	}
 
-	public boolean insertIntoChampions(Integer id, String name, String title, String key, String splashArtUrl)
+	public boolean insertIntoChampions(String id, String name, String title, Integer key, String splashArtUrl)
 	{
 		MapSqlParameterSource namedParameters = new MapSqlParameterSource();
-		namedParameters.addValue("id", id.toString());
+		namedParameters.addValue("id", id);
 		namedParameters.addValue("name", name);
 		namedParameters.addValue("title", title);
-		namedParameters.addValue("key", key);
+		namedParameters.addValue("key", key.toString());
 		namedParameters.addValue("splashArtUrl", splashArtUrl);
 
 		return namedParameterJdbcTemplate.update(SQL_INSERT_INTO_CHAMPIONS, namedParameters) == 1;

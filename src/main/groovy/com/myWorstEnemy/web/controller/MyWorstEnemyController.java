@@ -44,13 +44,13 @@ public class MyWorstEnemyController
 	}
 
 	@RequestMapping("/")
-	public String helloWorld()
+	String helloWorld()
 	{
 		return "Hello World!";
 	}
 
 	@RequestMapping(method = RequestMethod.GET, value = "/topFiveChampions/{summonerName}", produces=MediaType.APPLICATION_JSON_VALUE)
-	public String topFiveChampions(@PathVariable String summonerName)
+	String topFiveChampions(@PathVariable String summonerName)
 	{
 		Summoner summoner;
 		MatchList matchList;
@@ -157,6 +157,7 @@ public class MyWorstEnemyController
 		return topFiveChampions.toString();
 	}
 
+	// todo: fill out json with real data instead of mock data
 	@RequestMapping(method = RequestMethod.GET, value = "/selectedChampion/{summonerName}/{championId}", produces=MediaType.APPLICATION_JSON_VALUE)
 	public String selectedChampion(@PathVariable String summonerName, @PathVariable int championId)
 	{
@@ -301,11 +302,11 @@ public class MyWorstEnemyController
 		try
 		{
 			StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
-			ChampionList championList = api.getStaticChampionInfo();
+			ChampionList championList = api.getStaticChampionInfo("10.4.1");
 			for (Map.Entry<String, com.riot.dto.StaticData.Champion> entry : championList.getData().entrySet())
 			{
-//				String splashArtUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/splash/" + entry.getValue().getKey() + "_0.jpg";
-				String splashArtUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/" + entry.getValue().getKey() + "_0.jpg";
+//				String splashArtUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/splash/" + entry.getValue().getId() + "_0.jpg";
+				String splashArtUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/" + entry.getValue().getId() + "_0.jpg";
 				if (!staticDataService.insertIntoChampions(entry.getValue().getId(), entry.getValue().getName(), entry.getValue().getTitle(), entry.getValue().getKey(), splashArtUrl))
 					logger.info("(" + entry.getValue().getId() +", "+ entry.getValue().getName() + ", " + entry.getValue().getTitle() + ", " + entry.getValue().getKey() + ", " + splashArtUrl + ") was not inserted!");
 				else
