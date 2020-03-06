@@ -3,7 +3,7 @@ package com.myWorstEnemy.web.controller;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.myWorstEnemy.service.domain.Champion;
-import com.myWorstEnemy.service.domain.SomeList;
+import com.myWorstEnemy.service.domain.ChampionInfo;
 import com.myWorstEnemy.service.StaticDataService;
 import com.riot.api.RiotApi;
 import com.riot.dto.Match.Match;
@@ -93,12 +93,12 @@ public class MyWorstEnemyController
 			logger.error("matchList is null!");
 
 		// convert championGamesMap into two arrays with matching indexes
-		Integer[] listOfChampionIds = new Integer[championGamesMap.size()];
+		Integer[] listOfChampionKeys = new Integer[championGamesMap.size()];
 		Integer[] listOfChampionNumOfGames = new Integer[championGamesMap.size()];
 		int index = 0;
 		for (Map.Entry<Integer, Integer> mapEntry : championGamesMap.entrySet())
 		{
-			listOfChampionIds[index] = mapEntry.getKey();
+			listOfChampionKeys[index] = mapEntry.getKey();
 			listOfChampionNumOfGames[index] = mapEntry.getValue();
 			index++;
 		}
@@ -108,24 +108,24 @@ public class MyWorstEnemyController
 		do
 		{
 			swapped = false;
-			for (int i = 1; i < listOfChampionIds.length; i++)
+			for (int i = 1; i < listOfChampionKeys.length; i++)
 			{
 				if (listOfChampionNumOfGames[i - 1] < listOfChampionNumOfGames[i])
 				{
 					Integer temp = listOfChampionNumOfGames[i - 1];
 					listOfChampionNumOfGames[i - 1] = listOfChampionNumOfGames[i];
 					listOfChampionNumOfGames[i] = temp;
-					temp = listOfChampionIds[i - 1];
-					listOfChampionIds[i - 1] = listOfChampionIds[i];
-					listOfChampionIds[i] = temp;
+					temp = listOfChampionKeys[i - 1];
+					listOfChampionKeys[i - 1] = listOfChampionKeys[i];
+					listOfChampionKeys[i] = temp;
 					swapped = true;
 				}
 			}
 		} while (swapped);
 
 		int upperBound = 5;
-		if (listOfChampionIds.length < 5)
-			upperBound = listOfChampionIds.length;
+		if (listOfChampionKeys.length < 5)
+			upperBound = listOfChampionKeys.length;
 
 		StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
 
@@ -134,7 +134,7 @@ public class MyWorstEnemyController
 		{
 			for (int i = 0; i < upperBound; i++)
 			{
-				Champion champion = staticDataService.getChampionById(listOfChampionIds[i]);
+				Champion champion = staticDataService.getChampionByKey(listOfChampionKeys[i]);
 				JsonObject championJson = new JsonObject();
 				championJson.addProperty("name", champion.getName());
 				championJson.addProperty("title", champion.getTitle());
@@ -176,6 +176,7 @@ public class MyWorstEnemyController
 		}
 
 		Match match = new Match();
+		Map<String, ChampionInfo> championInfoMap = new HashMap<String, ChampionInfo>();
 		if (matchList != null)
 		{
 			for (int i = 0; i < matchList.getEndIndex(); i++)
@@ -287,22 +288,19 @@ public class MyWorstEnemyController
 		return null;
 	}
 
-	@RequestMapping(method = RequestMethod.GET, value = "/loadExampleTable")
-	public String loadExampleTable()
-	{
-		StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
-		SomeList someList = new SomeList();
-		someList.setExampleList(staticDataService.getExampleInfo());
-		return someList.toString();
-	}
-
 	@RequestMapping(method = RequestMethod.GET, value = "/loadChampionsTable")
 	public boolean loadChampionsTable()
 	{
 		try
 		{
 			StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
-			ChampionList championList = api.getStaticChampionInfo("10.4.1");
+
+			// Delete all rows from champions table
+			if (!staticDataService.deleteChampionsTableRows())
+				throw new Exception("Something went wrong deleting all the rows from the champions table");
+
+			// Create and fill champions table with data
+			ChampionList championList = api.getStaticChampionInfo("10.5.1");
 			for (Map.Entry<String, com.riot.dto.StaticData.Champion> entry : championList.getData().entrySet())
 			{
 //				String splashArtUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/splash/" + entry.getValue().getId() + "_0.jpg";

@@ -12,8 +12,8 @@ riot.datasource:
     driverClassName: 'org.sqlite.JDBC'
     username: ''
     password: ''
-    url: 'sqlite/riotstaticdatadb.db'
-#    url: 'exampledb.db'
+    url: 'riotstaticdatadb.db'
+#    url: 'jdbc:sqlite::resource:sqlite/riotstaticdatadb.db'
 
 #400 = draft pick
 #420 = ranked solo
