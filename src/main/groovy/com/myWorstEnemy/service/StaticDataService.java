@@ -29,28 +29,13 @@ public class StaticDataService
 		this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
 	}
 
-	private static final String SQL_SELECT_ALL_FROM_CHAMPIONS = "SELECT * " +
-			"FROM example";
+	private static final String SQL_DELETE_ALL_FROM_CHAMPIONS = "DELETE FROM champions;";
 
 	private static final String SQL_INSERT_INTO_CHAMPIONS = "INSERT INTO champions " +
 			"VALUES (:id, :name, :title, :key, :splashArtUrl);";
 
-	private static final String SQL_SELECT_CHAMPION_BY_ID = "SELECT * FROM champions " +
-			"WHERE id = :id;";
-
-	public List<Example> getExampleInfo()
-	{
-		try
-		{
-			MapSqlParameterSource namedParameters = new MapSqlParameterSource();
-			return namedParameterJdbcTemplate.query(SQL_SELECT_ALL_FROM_CHAMPIONS, namedParameters, new ExampleRowMapper());
-		}
-		catch (DataAccessException e)
-		{
-			log.error("DataAccessException ", e);
-			throw e;
-		}
-	}
+	private static final String SQL_SELECT_CHAMPION_BY_KEY = "SELECT * FROM champions " +
+			"WHERE key = :key;";
 
 	public class ExampleRowMapper implements RowMapper<Example>
 	{
@@ -61,6 +46,21 @@ public class StaticDataService
 			something.setExample1(rs.getInt("example1"));
 			something.setExample2(rs.getInt("example2"));
 			return something;
+		}
+	}
+
+	public boolean deleteChampionsTableRows()
+	{
+		try
+		{
+			int rowsDeleted = namedParameterJdbcTemplate.update(SQL_DELETE_ALL_FROM_CHAMPIONS, new MapSqlParameterSource());
+			log.info("Deleted " + rowsDeleted + " from champions table!");
+			return true;
+		}
+		catch (DataAccessException e)
+		{
+			log.error("DataAccessException ", e);
+			return false;
 		}
 	}
 
@@ -76,12 +76,12 @@ public class StaticDataService
 		return namedParameterJdbcTemplate.update(SQL_INSERT_INTO_CHAMPIONS, namedParameters) == 1;
 	}
 
-	public Champion getChampionById(Integer id)
+	public Champion getChampionByKey(Integer key)
 	{
 		MapSqlParameterSource namedParameters = new MapSqlParameterSource();
-		namedParameters.addValue("id", id.toString());
+		namedParameters.addValue("key", key.toString());
 
-		return namedParameterJdbcTemplate.queryForObject(SQL_SELECT_CHAMPION_BY_ID, namedParameters, new ChampionRowMapper());
+		return namedParameterJdbcTemplate.queryForObject(SQL_SELECT_CHAMPION_BY_KEY, namedParameters, new ChampionRowMapper());
 	}
 
 	public class ChampionRowMapper implements RowMapper<Champion>
@@ -89,13 +89,13 @@ public class StaticDataService
 		@Override
 		public Champion mapRow(ResultSet rs, int rowNum) throws SQLException
 		{
-			Champion something = new Champion();
-			something.setId(rs.getInt("id"));
-			something.setName(rs.getString("name"));
-			something.setTitle(rs.getString("title"));
-			something.setSplashArtUrl(rs.getString("splash_art_url"));
+			Champion champion = new Champion();
+			champion.setId(rs.getInt("id"));
+			champion.setName(rs.getString("name"));
+			champion.setTitle(rs.getString("title"));
+			champion.setSplashArtUrl(rs.getString("splash_art_url"));
 
-			return something;
+			return champion;
 		}
 	}
 }
