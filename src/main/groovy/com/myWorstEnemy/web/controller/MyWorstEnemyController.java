@@ -25,9 +25,6 @@ import java.util.*;
 @RestController
 public class MyWorstEnemyController
 {
-	@Value("${myWorstEnemy.useMock:false}")
-	Boolean useMock;
-
 	@Value("${queue}")
 	int queue;
 
