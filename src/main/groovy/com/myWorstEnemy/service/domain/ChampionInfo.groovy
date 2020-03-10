@@ -5,5 +5,4 @@ class ChampionInfo {
 	int gamesPlayed
 	int gamesLost
 	int gamesBanned
-	int totalGames
 }

@@ -8,6 +8,9 @@ import com.myWorstEnemy.service.StaticDataService;
 import com.riot.api.RiotApi;
 import com.riot.dto.Match.Match;
 import com.riot.dto.Match.MatchList;
+import com.riot.dto.Match.Participant;
+import com.riot.dto.Match.TeamBans;
+import com.riot.dto.Match.TeamStats;
 import com.riot.dto.StaticData.ChampionList;
 import com.riot.dto.Summoner.Summoner;
 import com.riot.exception.RiotApiException;
@@ -149,7 +152,7 @@ public class MyWorstEnemyController
 		// get champions by id's
 		JsonObject topFiveChampions = new JsonObject();
 		topFiveChampions.add("champions", championJsonArr);
-		logger.error(topFiveChampions.toString());
+		logger.info(topFiveChampions.toString());
 
 		return topFiveChampions.toString();
 	}
@@ -172,14 +175,18 @@ public class MyWorstEnemyController
 			return e.getMessage();
 		}
 
+		StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
+
 		Match match = new Match();
-		Map<String, ChampionInfo> championInfoMap = new HashMap<String, ChampionInfo>();
+		Map<Integer, ChampionInfo> enemyChampionInfoMap = new HashMap<Integer, ChampionInfo>();
+		int numOfGames = 0;
 		if (matchList != null)
 		{
 			for (int i = 0; i < matchList.getEndIndex(); i++)
 			{
 				if ((matchList.getMatches().get(i).getQueue() == queue) && (matchList.getMatches().get(i).getChampion() == championId))
 				{
+					numOfGames++;
 					if (queue == 400)
 						logger.info("index: " + i + " was a draft game!");
 					else if (queue == 420)
@@ -187,7 +194,71 @@ public class MyWorstEnemyController
 
 					try
 					{
+						int teamId = 0;
 						match = api.getMatchByMatchId(matchList.getMatches().get(i).getGameId());
+
+						List<Participant> participants = match.getParticipants();
+						// get team id for selected champion
+						for (Participant participant : participants)
+							if (participant.getChampionId() == championId)
+							{
+								teamId = participant.getTeamId();
+								logger.info("Team Id for selected champion is " + teamId);
+							}
+
+						if (teamId == 0)
+							throw new RiotApiException("Could not find team for selected champion!");
+
+						// did team with id 100 win?
+						boolean blueTeamWin = (match.getTeams().get(0).getTeamId() == 100 && match.getTeams().get(0).getWin().equals("Win")) ||
+								(!(match.getTeams().get(0).getTeamId() == 100) && !(match.getTeams().get(0).getWin().equals("Win")));
+
+						// if participant is an enemy of the selected champion, add them to the map if they don't
+						// already exist, otherwise, bump numbers
+						for (Participant participant : participants)
+						{
+							if (participant.getTeamId() != teamId)
+							{
+								// if champion id doesn't exist in enemyChampionInfoMap, add it
+								if (!enemyChampionInfoMap.containsKey(participant.getChampionId()))
+								{
+									ChampionInfo enemyChampionInfo = new ChampionInfo();
+									enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(participant.getChampionId()).getSplashArtUrl());
+									enemyChampionInfo.setGamesPlayed(1);
+									if ((participant.getTeamId() == 100 && blueTeamWin) || (participant.getTeamId() == 200 && !blueTeamWin))
+										enemyChampionInfo.setGamesLost(1);
+									else
+										enemyChampionInfo.setGamesLost(0);
+									enemyChampionInfo.setGamesBanned(0);
+									enemyChampionInfoMap.put(participant.getChampionId(), enemyChampionInfo);
+								}
+								else
+								{
+									enemyChampionInfoMap.get(participant.getChampionId()).setGamesPlayed(enemyChampionInfoMap.get(participant.getChampionId()).getGamesPlayed() + 1);
+									if ((participant.getTeamId() == 100 && blueTeamWin) || (participant.getTeamId() == 200 && !blueTeamWin))
+										enemyChampionInfoMap.get(participant.getChampionId()).setGamesLost(enemyChampionInfoMap.get(participant.getChampionId()).getGamesLost() + 1);
+								}
+							}
+						}
+
+						// if
+						for (TeamStats team : match.getTeams())
+							for (TeamBans ban : team.getBans())
+							{
+								// if champion id doesn't exist in enemyChampionInfoMap, add it
+								if (!enemyChampionInfoMap.containsKey(ban.getChampionId()))
+								{
+									ChampionInfo enemyChampionInfo = new ChampionInfo();
+									enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(ban.getChampionId()).getSplashArtUrl());
+									enemyChampionInfo.setGamesPlayed(0);
+									enemyChampionInfo.setGamesLost(0);
+									enemyChampionInfo.setGamesBanned(1);
+									enemyChampionInfoMap.put(ban.getChampionId(), enemyChampionInfo);
+									logger.debug("Added champion id " + ban.getChampionId() + " to enemyChampionInfoMap");
+								}
+								else // else bump up the games banned by one
+									enemyChampionInfoMap.get(ban.getChampionId()).setGamesBanned(enemyChampionInfoMap.get(ban.getChampionId()).getGamesBanned() + 1);
+							}
 					}
 					catch (RiotApiException e)
 					{
@@ -199,11 +270,28 @@ public class MyWorstEnemyController
 		} else
 			logger.error("matchList is null!");
 
+		for (Map.Entry<Integer, ChampionInfo> entry : enemyChampionInfoMap.entrySet())
+		{
+			logger.info("Key = " + entry.getKey());
+			logger.info("Value.iconImageURL = " + entry.getValue().getIconImageUrl());
+			logger.info("Value.gamesPlayed = " + entry.getValue().getGamesPlayed());
+			logger.info("Value.gamesLost = " + entry.getValue().getGamesLost());
+			logger.info("Value.gamesBanned = " + entry.getValue().getGamesBanned());
+		}
+
+		// start of real data
 		JsonObject selectedChampionJson = new JsonObject();
-		selectedChampionJson.addProperty("name", "Zac");
-		selectedChampionJson.addProperty("title", "the Secret Weapon");
-		selectedChampionJson.addProperty("loadingImageUrl", "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/Zac_0.jpg");
-		selectedChampionJson.addProperty("numOfGames", "13");
+		selectedChampionJson.addProperty("name", staticDataService.getChampionByKey(championId).getName());
+		selectedChampionJson.addProperty("title", staticDataService.getChampionByKey(championId).getTitle());
+		selectedChampionJson.addProperty("loadingImageUrl", staticDataService.getChampionByKey(championId).getSplashArtUrl());
+		selectedChampionJson.addProperty("numOfGames", numOfGames);
+
+		// start of mock data
+		JsonObject selectedChampionJsonMock = new JsonObject();
+		selectedChampionJsonMock.addProperty("name", "Zac");
+		selectedChampionJsonMock.addProperty("title", "the Secret Weapon");
+		selectedChampionJsonMock.addProperty("loadingImageUrl", "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/Zac_0.jpg");
+		selectedChampionJsonMock.addProperty("numOfGames", "13");
 
 		JsonObject yasuo = new JsonObject();
 		yasuo.addProperty("name", "Yasuo");
@@ -261,22 +349,24 @@ public class MyWorstEnemyController
 		xinZhao.addProperty("gamesLost", "3");
 		xinZhao.addProperty("gamesBanned", "3");
 
-		JsonArray enemyChampions = new JsonArray();
-		enemyChampions.add(yasuo);
-		enemyChampions.add(vayne);
-		enemyChampions.add(masterYi);
-		enemyChampions.add(akali);
-		enemyChampions.add(jhin);
-		enemyChampions.add(urgot);
-		enemyChampions.add(leblanc);
-		enemyChampions.add(xinZhao);
+		JsonArray enemyChampionsMock = new JsonArray();
+		enemyChampionsMock.add(yasuo);
+		enemyChampionsMock.add(vayne);
+		enemyChampionsMock.add(masterYi);
+		enemyChampionsMock.add(akali);
+		enemyChampionsMock.add(jhin);
+		enemyChampionsMock.add(urgot);
+		enemyChampionsMock.add(leblanc);
+		enemyChampionsMock.add(xinZhao);
 
-		JsonObject championJson = new JsonObject();
-		championJson.add("selectedChampion", selectedChampionJson);
-		championJson.add("enemyChampions", enemyChampions);
+		JsonObject championJsonMock = new JsonObject();
+		championJsonMock.add("selectedChampion", selectedChampionJsonMock);
+		championJsonMock.add("enemyChampions", enemyChampionsMock);
 
-		logger.info("selected champion results: " + championJson.toString());
-		return championJson.toString();
+		logger.info("selected mock champion results: " + championJsonMock.toString());
+		// end of mock data
+
+		return championJsonMock.toString();
 	}
 
 	@RequestMapping(method = RequestMethod.GET, value = "/getTeamData")

@@ -90,7 +90,7 @@ public class StaticDataService
 		public Champion mapRow(ResultSet rs, int rowNum) throws SQLException
 		{
 			Champion champion = new Champion();
-			champion.setId(rs.getInt("id"));
+			champion.setId(rs.getInt("key"));
 			champion.setName(rs.getString("name"));
 			champion.setTitle(rs.getString("title"));
 			champion.setSplashArtUrl(rs.getString("splash_art_url"));
