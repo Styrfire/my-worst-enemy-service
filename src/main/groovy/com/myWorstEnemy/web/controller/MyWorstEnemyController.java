@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.myWorstEnemy.service.domain.Champion;
 import com.myWorstEnemy.service.domain.ChampionInfo;
 import com.myWorstEnemy.service.StaticDataService;
+import com.myWorstEnemy.utility.JsonUtility;
 import com.riot.api.RiotApi;
 import com.riot.dto.Match.Match;
 import com.riot.dto.Match.MatchList;
@@ -157,7 +158,7 @@ public class MyWorstEnemyController
 		return topFiveChampions.toString();
 	}
 
-	// todo: fill out json with real data instead of mock data
+	// todo: get icon image urls instead of splash arts
 	@RequestMapping(method = RequestMethod.GET, value = "/selectedChampion/{summonerName}/{championId}", produces=MediaType.APPLICATION_JSON_VALUE)
 	public String selectedChampion(@PathVariable String summonerName, @PathVariable int championId)
 	{
@@ -177,8 +178,8 @@ public class MyWorstEnemyController
 
 		StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
 
-		Match match = new Match();
-		Map<Integer, ChampionInfo> enemyChampionInfoMap = new HashMap<Integer, ChampionInfo>();
+		Match match;
+		Map<Integer, ChampionInfo> enemyChampionInfoMap = new HashMap<>();
 		int numOfGames = 0;
 		if (matchList != null)
 		{
@@ -219,9 +220,14 @@ public class MyWorstEnemyController
 						{
 							if (participant.getTeamId() != teamId)
 							{
+								int z;
+								if (participant.getChampionId() == 517)
+									z = 1;
+
 								// if champion id doesn't exist in enemyChampionInfoMap, add it
 								if (!enemyChampionInfoMap.containsKey(participant.getChampionId()))
 								{
+									logger.debug("Added champion id " + participant.getChampionId() + " to enemyChampionInfoMap (unbanned champion)");
 									ChampionInfo enemyChampionInfo = new ChampionInfo();
 									enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(participant.getChampionId()).getSplashArtUrl());
 									enemyChampionInfo.setGamesPlayed(1);
@@ -234,6 +240,7 @@ public class MyWorstEnemyController
 								}
 								else
 								{
+									logger.debug("Updated champion id " + participant.getChampionId() + " in enemyChampionInfoMap (unbanned champion)");
 									enemyChampionInfoMap.get(participant.getChampionId()).setGamesPlayed(enemyChampionInfoMap.get(participant.getChampionId()).getGamesPlayed() + 1);
 									if ((participant.getTeamId() == 100 && blueTeamWin) || (participant.getTeamId() == 200 && !blueTeamWin))
 										enemyChampionInfoMap.get(participant.getChampionId()).setGamesLost(enemyChampionInfoMap.get(participant.getChampionId()).getGamesLost() + 1);
@@ -248,16 +255,19 @@ public class MyWorstEnemyController
 								// if champion id doesn't exist in enemyChampionInfoMap, add it
 								if (!enemyChampionInfoMap.containsKey(ban.getChampionId()))
 								{
+									logger.debug("Added champion id " + ban.getChampionId() + " to enemyChampionInfoMap (banned champion)");
 									ChampionInfo enemyChampionInfo = new ChampionInfo();
 									enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(ban.getChampionId()).getSplashArtUrl());
 									enemyChampionInfo.setGamesPlayed(0);
 									enemyChampionInfo.setGamesLost(0);
 									enemyChampionInfo.setGamesBanned(1);
 									enemyChampionInfoMap.put(ban.getChampionId(), enemyChampionInfo);
-									logger.debug("Added champion id " + ban.getChampionId() + " to enemyChampionInfoMap");
 								}
 								else // else bump up the games banned by one
+								{
+									logger.debug("Updated champion id " + ban.getChampionId() + " in enemyChampionInfoMap (banned champion)");
 									enemyChampionInfoMap.get(ban.getChampionId()).setGamesBanned(enemyChampionInfoMap.get(ban.getChampionId()).getGamesBanned() + 1);
+								}
 							}
 					}
 					catch (RiotApiException e)
@@ -279,94 +289,7 @@ public class MyWorstEnemyController
 			logger.info("Value.gamesBanned = " + entry.getValue().getGamesBanned());
 		}
 
-		// start of real data
-		JsonObject selectedChampionJson = new JsonObject();
-		selectedChampionJson.addProperty("name", staticDataService.getChampionByKey(championId).getName());
-		selectedChampionJson.addProperty("title", staticDataService.getChampionByKey(championId).getTitle());
-		selectedChampionJson.addProperty("loadingImageUrl", staticDataService.getChampionByKey(championId).getSplashArtUrl());
-		selectedChampionJson.addProperty("numOfGames", numOfGames);
-
-		// start of mock data
-		JsonObject selectedChampionJsonMock = new JsonObject();
-		selectedChampionJsonMock.addProperty("name", "Zac");
-		selectedChampionJsonMock.addProperty("title", "the Secret Weapon");
-		selectedChampionJsonMock.addProperty("loadingImageUrl", "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/Zac_0.jpg");
-		selectedChampionJsonMock.addProperty("numOfGames", "13");
-
-		JsonObject yasuo = new JsonObject();
-		yasuo.addProperty("name", "Yasuo");
-		yasuo.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Yasuo.png");
-		yasuo.addProperty("gamesPlayed", "1");
-		yasuo.addProperty("gamesLost", "1");
-		yasuo.addProperty("gamesBanned", "9");
-
-		JsonObject vayne = new JsonObject();
-		vayne.addProperty("name", "Vayne");
-		vayne.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Vayne.png");
-		vayne.addProperty("gamesPlayed", "2");
-		vayne.addProperty("gamesLost", "1");
-		vayne.addProperty("gamesBanned", "2");
-
-		JsonObject masterYi = new JsonObject();
-		masterYi.addProperty("name", "Master Yi");
-		masterYi.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/MasterYi.png");
-		masterYi.addProperty("gamesPlayed", "2");
-		masterYi.addProperty("gamesLost", "2");
-		masterYi.addProperty("gamesBanned", "4");
-
-		JsonObject akali = new JsonObject();
-		akali.addProperty("name", "Akali");
-		akali.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Akali.png");
-		akali.addProperty("gamesPlayed", "3");
-		akali.addProperty("gamesLost", "2");
-		akali.addProperty("gamesBanned", "9");
-
-		JsonObject jhin = new JsonObject();
-		jhin.addProperty("name", "Jhin");
-		jhin.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Jhin.png");
-		jhin.addProperty("gamesPlayed", "5");
-		jhin.addProperty("gamesLost", "2");
-		jhin.addProperty("gamesBanned", "0");
-
-		JsonObject urgot = new JsonObject();
-		urgot.addProperty("name", "Urgot");
-		urgot.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Urgot.png");
-		urgot.addProperty("gamesPlayed", "0");
-		urgot.addProperty("gamesLost", "0");
-		urgot.addProperty("gamesBanned", "13");
-
-		JsonObject leblanc = new JsonObject();
-		leblanc.addProperty("name", "Leblanc");
-		leblanc.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Leblanc.png");
-		leblanc.addProperty("gamesPlayed", "2");
-		leblanc.addProperty("gamesLost", "1");
-		leblanc.addProperty("gamesBanned", "5");
-
-		JsonObject xinZhao = new JsonObject();
-		xinZhao.addProperty("name", "Xin Zhao");
-		xinZhao.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/XinZhao.png");
-		xinZhao.addProperty("gamesPlayed", "7");
-		xinZhao.addProperty("gamesLost", "3");
-		xinZhao.addProperty("gamesBanned", "3");
-
-		JsonArray enemyChampionsMock = new JsonArray();
-		enemyChampionsMock.add(yasuo);
-		enemyChampionsMock.add(vayne);
-		enemyChampionsMock.add(masterYi);
-		enemyChampionsMock.add(akali);
-		enemyChampionsMock.add(jhin);
-		enemyChampionsMock.add(urgot);
-		enemyChampionsMock.add(leblanc);
-		enemyChampionsMock.add(xinZhao);
-
-		JsonObject championJsonMock = new JsonObject();
-		championJsonMock.add("selectedChampion", selectedChampionJsonMock);
-		championJsonMock.add("enemyChampions", enemyChampionsMock);
-
-		logger.info("selected mock champion results: " + championJsonMock.toString());
-		// end of mock data
-
-		return championJsonMock.toString();
+		return JsonUtility.createSelectedChampionJson(championId, numOfGames, enemyChampionInfoMap, staticDataService);
 	}
 
 	@RequestMapping(method = RequestMethod.GET, value = "/getTeamData")
@@ -375,6 +298,7 @@ public class MyWorstEnemyController
 		return null;
 	}
 
+	// todo: add image urls (and splash art if we're feeling fancy)
 	@RequestMapping(method = RequestMethod.GET, value = "/loadChampionsTable")
 	public boolean loadChampionsTable()
 	{
