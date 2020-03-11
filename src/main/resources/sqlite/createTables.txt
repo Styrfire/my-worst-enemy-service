@@ -6,5 +6,6 @@ CREATE TABLE IF NOT EXISTS champions (
 	title TEXT NOT NULL,
 	key INTEGER NOT NULL,
 	splash_img_url TEXT NOT NULL,
+	loading_img_url TEXT NOT NULL,
 	icon_img_url TEXT NOT NULL
 );

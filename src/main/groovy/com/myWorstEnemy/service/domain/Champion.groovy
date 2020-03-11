@@ -5,5 +5,7 @@ class Champion
 	int id
 	String name
 	String title
-	String splashArtUrl
+	String splashImgUrl
+	String loadingImgUrl
+	String iconImgUrl
 }

@@ -18,7 +18,7 @@ public class JsonUtility
 		JsonObject selectedChampionJson = new JsonObject();
 		selectedChampionJson.addProperty("name", staticDataService.getChampionByKey(championId).getName());
 		selectedChampionJson.addProperty("title", staticDataService.getChampionByKey(championId).getTitle());
-		selectedChampionJson.addProperty("loadingImageUrl", staticDataService.getChampionByKey(championId).getSplashArtUrl());
+		selectedChampionJson.addProperty("loadingImageUrl", staticDataService.getChampionByKey(championId).getLoadingImgUrl());
 		selectedChampionJson.addProperty("numOfGames", numOfGames);
 
 		JsonArray enemyChampions = new JsonArray();
@@ -58,7 +58,7 @@ public class JsonUtility
 		{
 			JsonObject currentChampion = new JsonObject();
 			currentChampion.addProperty("name", staticDataService.getChampionByKey(championKeyList[i]).getName());
-			currentChampion.addProperty("iconImageUrl", staticDataService.getChampionByKey(championKeyList[i]).getSplashArtUrl());
+			currentChampion.addProperty("iconImageUrl", staticDataService.getChampionByKey(championKeyList[i]).getIconImgUrl());
 			currentChampion.addProperty("gamesPlayed", championInfoList[i].getGamesPlayed());
 			currentChampion.addProperty("gamesLost", championInfoList[i].getGamesLost());
 			currentChampion.addProperty("gamesBanned", championInfoList[i].getGamesBanned());

@@ -139,7 +139,7 @@ public class MyWorstEnemyController
 				JsonObject championJson = new JsonObject();
 				championJson.addProperty("name", champion.getName());
 				championJson.addProperty("title", champion.getTitle());
-				championJson.addProperty("splashArtUrl", champion.getSplashArtUrl().replaceAll("splash", "loading"));
+				championJson.addProperty("splashArtUrl", champion.getLoadingImgUrl());
 				championJson.addProperty("id", champion.getId());
 				championJson.addProperty("numOfGames", listOfChampionNumOfGames[i]);
 				championJsonArr.add(championJson);
@@ -220,16 +220,12 @@ public class MyWorstEnemyController
 						{
 							if (participant.getTeamId() != teamId)
 							{
-								int z;
-								if (participant.getChampionId() == 517)
-									z = 1;
-
 								// if champion id doesn't exist in enemyChampionInfoMap, add it
 								if (!enemyChampionInfoMap.containsKey(participant.getChampionId()))
 								{
 									logger.debug("Added champion id " + participant.getChampionId() + " to enemyChampionInfoMap (unbanned champion)");
 									ChampionInfo enemyChampionInfo = new ChampionInfo();
-									enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(participant.getChampionId()).getSplashArtUrl());
+									enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(participant.getChampionId()).getIconImgUrl());
 									enemyChampionInfo.setGamesPlayed(1);
 									if ((participant.getTeamId() == 100 && blueTeamWin) || (participant.getTeamId() == 200 && !blueTeamWin))
 										enemyChampionInfo.setGamesLost(1);
@@ -252,22 +248,26 @@ public class MyWorstEnemyController
 						for (TeamStats team : match.getTeams())
 							for (TeamBans ban : team.getBans())
 							{
-								// if champion id doesn't exist in enemyChampionInfoMap, add it
-								if (!enemyChampionInfoMap.containsKey(ban.getChampionId()))
+								// if champion id doesn't exist in enemyChampionInfoMap, add it, unless it's -1 (which is no ban) to which you ignore it
+								if (ban.getChampionId() != -1)
 								{
-									logger.debug("Added champion id " + ban.getChampionId() + " to enemyChampionInfoMap (banned champion)");
-									ChampionInfo enemyChampionInfo = new ChampionInfo();
-									enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(ban.getChampionId()).getSplashArtUrl());
-									enemyChampionInfo.setGamesPlayed(0);
-									enemyChampionInfo.setGamesLost(0);
-									enemyChampionInfo.setGamesBanned(1);
-									enemyChampionInfoMap.put(ban.getChampionId(), enemyChampionInfo);
+									if (!enemyChampionInfoMap.containsKey(ban.getChampionId()))
+									{
+										logger.debug("Added champion id " + ban.getChampionId() + " to enemyChampionInfoMap (banned champion)");
+										ChampionInfo enemyChampionInfo = new ChampionInfo();
+										enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(ban.getChampionId()).getIconImgUrl());
+										enemyChampionInfo.setGamesPlayed(0);
+										enemyChampionInfo.setGamesLost(0);
+										enemyChampionInfo.setGamesBanned(1);
+										enemyChampionInfoMap.put(ban.getChampionId(), enemyChampionInfo);
+									} else // else bump up the games banned by one
+									{
+										logger.debug("Updated champion id " + ban.getChampionId() + " in enemyChampionInfoMap (banned champion)");
+										enemyChampionInfoMap.get(ban.getChampionId()).setGamesBanned(enemyChampionInfoMap.get(ban.getChampionId()).getGamesBanned() + 1);
+									}
 								}
-								else // else bump up the games banned by one
-								{
-									logger.debug("Updated champion id " + ban.getChampionId() + " in enemyChampionInfoMap (banned champion)");
-									enemyChampionInfoMap.get(ban.getChampionId()).setGamesBanned(enemyChampionInfoMap.get(ban.getChampionId()).getGamesBanned() + 1);
-								}
+								else
+									logger.debug("No champion was banned for this person!");
 							}
 					}
 					catch (RiotApiException e)
@@ -306,20 +306,24 @@ public class MyWorstEnemyController
 		{
 			StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
 
+			String patchVersion = "10.5.1";
+
 			// Delete all rows from champions table
 			if (!staticDataService.deleteChampionsTableRows())
 				throw new Exception("Something went wrong deleting all the rows from the champions table");
 
 			// Create and fill champions table with data
-			ChampionList championList = api.getStaticChampionInfo("10.5.1");
+			ChampionList championList = api.getStaticChampionInfo(patchVersion);
 			for (Map.Entry<String, com.riot.dto.StaticData.Champion> entry : championList.getData().entrySet())
 			{
-//				String splashArtUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/splash/" + entry.getValue().getId() + "_0.jpg";
-				String splashArtUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/" + entry.getValue().getId() + "_0.jpg";
-				if (!staticDataService.insertIntoChampions(entry.getValue().getId(), entry.getValue().getName(), entry.getValue().getTitle(), entry.getValue().getKey(), splashArtUrl))
-					logger.info("(" + entry.getValue().getId() +", "+ entry.getValue().getName() + ", " + entry.getValue().getTitle() + ", " + entry.getValue().getKey() + ", " + splashArtUrl + ") was not inserted!");
+				String splashImgUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/splash/" + entry.getValue().getId() + "_0.jpg";
+				String loadingImgUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/" + entry.getValue().getId() + "_0.jpg";
+				String iconImgUrl = "http://ddragon.leagueoflegends.com/cdn/" + patchVersion + "/img/champion/" + entry.getValue().getId() + ".png";
+
+				if (!staticDataService.insertIntoChampions(entry.getValue().getId(), entry.getValue().getName(), entry.getValue().getTitle(), entry.getValue().getKey(), splashImgUrl, loadingImgUrl, iconImgUrl))
+					logger.info("(" + entry.getValue().getId() +", "+ entry.getValue().getName() + ", " + entry.getValue().getTitle() + ", " + entry.getValue().getKey() + ", " + splashImgUrl + ", " + loadingImgUrl + ", " + iconImgUrl + ") was not inserted!");
 				else
-					logger.info("(" + entry.getValue().getId() +", "+ entry.getValue().getName() + ", " + entry.getValue().getTitle() + ", " + entry.getValue().getKey() + ", " + splashArtUrl + ") was inserted!");
+					logger.info("(" + entry.getValue().getId() +", "+ entry.getValue().getName() + ", " + entry.getValue().getTitle() + ", " + entry.getValue().getKey() + ", " + splashImgUrl + ", " + loadingImgUrl + ", " + iconImgUrl + ") was inserted!");
 			}
 		}
 		catch (Exception e)
