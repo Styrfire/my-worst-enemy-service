@@ -1,10 +1,13 @@
 plugins {
 	id "com.gorylenko.gradle-git-properties" version "2.2.0"
+	id 'jacoco'
 }
 
+apply plugin: 'java'
 apply plugin: 'war'
 apply plugin: 'groovy'
 apply plugin: 'idea'
+apply plugin: 'jacoco'
 
 ext {
 	date = new Date().format("yyMMdd.HHmm")
@@ -57,9 +60,28 @@ dependencies
 //	testCompile "org.hamcrest:hamcrest-all:1.3"
 }
 
+jacoco {
+	toolVersion = "0.8.5"
+}
+
+jacocoTestCoverageVerification {
+	violationRules {
+		rule {
+			limit {
+				counter = 'BRANCH'
+				value = 'COVEREDRATIO'
+				minimum = 0.0 // 1.0 is 100 percent
+			}
+		}
+	}
+}
 test {
 	useJUnitPlatform()
+	finalizedBy jacocoTestReport
 }
+
+check.dependsOn jacocoTestCoverageVerification
+
 wrapper {
 	description = "Generates gradlew[.bat] scripts"
 	gradleVersion = '5.4.1'

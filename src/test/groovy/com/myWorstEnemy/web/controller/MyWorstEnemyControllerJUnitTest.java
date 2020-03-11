@@ -17,7 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class MyWorstEnemyControllerJUnitTest //extends Specification
@@ -57,14 +57,15 @@ class MyWorstEnemyControllerJUnitTest //extends Specification
 		summoner.setId("some encrypted value");
 		summoner.setAccountId("some encrypted value");
 
-//		Path path = new ("src/test/resources/json/matchlistJson.json")
+//		Path path = new ("src/test/resources/json/matchlistByAccountJson.json");
 //		String matchlistJson = Files.readString(null, StandardCharsets.US_ASCII);
 //		MatchList matchlist = (new Gson()).fromJson(matchlistJson, MatchList.class);
 		try
 		{
 			Mockito.when(riotApiMock.getSummonerByName("Zann Starfire")).thenReturn(summoner);
+//			Mockito.when(riotApiMock.getMatchListByAccountId("some encrypted value")).thenReturn(matchlist);
 
-			assertThat("", is(controller.topFiveChampions("Zann Starfire")));
+			assertThat(controller.topFiveChampions("Zann Starfire"), isEmptyOrNullString());
 		}
 		catch (RiotApiException e)
 		{
