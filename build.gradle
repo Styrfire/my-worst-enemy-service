@@ -11,13 +11,13 @@ ext {
 	springBootVersion = "2.1.5.RELEASE"
 }
 
-versionNum = "${versionNum.replace("SNAPSHOT", "${date}")}"
+version = "${version.replace("SNAPSHOT", "${date}")}"
 
 war {
 	jar.enabled = false
 	webXml = file("/WEB-INF/web.xml")
 	manifest {
-		attributes("war-version": versionNum)
+		attributes("war-version": version)
 	}
 }
 

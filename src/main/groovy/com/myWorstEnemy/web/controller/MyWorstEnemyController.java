@@ -5,9 +5,13 @@ import com.google.gson.JsonObject;
 import com.myWorstEnemy.service.domain.Champion;
 import com.myWorstEnemy.service.domain.ChampionInfo;
 import com.myWorstEnemy.service.StaticDataService;
+import com.myWorstEnemy.utility.JsonUtility;
 import com.riot.api.RiotApi;
 import com.riot.dto.Match.Match;
 import com.riot.dto.Match.MatchList;
+import com.riot.dto.Match.Participant;
+import com.riot.dto.Match.TeamBans;
+import com.riot.dto.Match.TeamStats;
 import com.riot.dto.StaticData.ChampionList;
 import com.riot.dto.Summoner.Summoner;
 import com.riot.exception.RiotApiException;
@@ -25,9 +29,6 @@ import java.util.*;
 @RestController
 public class MyWorstEnemyController
 {
-	@Value("${myWorstEnemy.useMock:false}")
-	Boolean useMock;
-
 	@Value("${queue}")
 	int queue;
 
@@ -138,7 +139,7 @@ public class MyWorstEnemyController
 				JsonObject championJson = new JsonObject();
 				championJson.addProperty("name", champion.getName());
 				championJson.addProperty("title", champion.getTitle());
-				championJson.addProperty("splashArtUrl", champion.getSplashArtUrl().replaceAll("splash", "loading"));
+				championJson.addProperty("splashArtUrl", champion.getLoadingImgUrl());
 				championJson.addProperty("id", champion.getId());
 				championJson.addProperty("numOfGames", listOfChampionNumOfGames[i]);
 				championJsonArr.add(championJson);
@@ -152,12 +153,12 @@ public class MyWorstEnemyController
 		// get champions by id's
 		JsonObject topFiveChampions = new JsonObject();
 		topFiveChampions.add("champions", championJsonArr);
-		logger.error(topFiveChampions.toString());
+		logger.info(topFiveChampions.toString());
 
 		return topFiveChampions.toString();
 	}
 
-	// todo: fill out json with real data instead of mock data
+	// todo: get icon image urls instead of splash arts
 	@RequestMapping(method = RequestMethod.GET, value = "/selectedChampion/{summonerName}/{championId}", produces=MediaType.APPLICATION_JSON_VALUE)
 	public String selectedChampion(@PathVariable String summonerName, @PathVariable int championId)
 	{
@@ -175,14 +176,18 @@ public class MyWorstEnemyController
 			return e.getMessage();
 		}
 
-		Match match = new Match();
-		Map<String, ChampionInfo> championInfoMap = new HashMap<String, ChampionInfo>();
+		StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
+
+		Match match;
+		Map<Integer, ChampionInfo> enemyChampionInfoMap = new HashMap<>();
+		int numOfGames = 0;
 		if (matchList != null)
 		{
 			for (int i = 0; i < matchList.getEndIndex(); i++)
 			{
 				if ((matchList.getMatches().get(i).getQueue() == queue) && (matchList.getMatches().get(i).getChampion() == championId))
 				{
+					numOfGames++;
 					if (queue == 400)
 						logger.info("index: " + i + " was a draft game!");
 					else if (queue == 420)
@@ -190,7 +195,80 @@ public class MyWorstEnemyController
 
 					try
 					{
+						int teamId = 0;
 						match = api.getMatchByMatchId(matchList.getMatches().get(i).getGameId());
+
+						List<Participant> participants = match.getParticipants();
+						// get team id for selected champion
+						for (Participant participant : participants)
+							if (participant.getChampionId() == championId)
+							{
+								teamId = participant.getTeamId();
+								logger.info("Team Id for selected champion is " + teamId);
+							}
+
+						if (teamId == 0)
+							throw new RiotApiException("Could not find team for selected champion!");
+
+						// did team with id 100 win?
+						boolean blueTeamWin = (match.getTeams().get(0).getTeamId() == 100 && match.getTeams().get(0).getWin().equals("Win")) ||
+								(!(match.getTeams().get(0).getTeamId() == 100) && !(match.getTeams().get(0).getWin().equals("Win")));
+
+						// if participant is an enemy of the selected champion, add them to the map if they don't
+						// already exist, otherwise, bump numbers
+						for (Participant participant : participants)
+						{
+							if (participant.getTeamId() != teamId)
+							{
+								// if champion id doesn't exist in enemyChampionInfoMap, add it
+								if (!enemyChampionInfoMap.containsKey(participant.getChampionId()))
+								{
+									logger.debug("Added champion id " + participant.getChampionId() + " to enemyChampionInfoMap (unbanned champion)");
+									ChampionInfo enemyChampionInfo = new ChampionInfo();
+									enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(participant.getChampionId()).getIconImgUrl());
+									enemyChampionInfo.setGamesPlayed(1);
+									if ((participant.getTeamId() == 100 && blueTeamWin) || (participant.getTeamId() == 200 && !blueTeamWin))
+										enemyChampionInfo.setGamesLost(1);
+									else
+										enemyChampionInfo.setGamesLost(0);
+									enemyChampionInfo.setGamesBanned(0);
+									enemyChampionInfoMap.put(participant.getChampionId(), enemyChampionInfo);
+								}
+								else
+								{
+									logger.debug("Updated champion id " + participant.getChampionId() + " in enemyChampionInfoMap (unbanned champion)");
+									enemyChampionInfoMap.get(participant.getChampionId()).setGamesPlayed(enemyChampionInfoMap.get(participant.getChampionId()).getGamesPlayed() + 1);
+									if ((participant.getTeamId() == 100 && blueTeamWin) || (participant.getTeamId() == 200 && !blueTeamWin))
+										enemyChampionInfoMap.get(participant.getChampionId()).setGamesLost(enemyChampionInfoMap.get(participant.getChampionId()).getGamesLost() + 1);
+								}
+							}
+						}
+
+						// if
+						for (TeamStats team : match.getTeams())
+							for (TeamBans ban : team.getBans())
+							{
+								// if champion id doesn't exist in enemyChampionInfoMap, add it, unless it's -1 (which is no ban) to which you ignore it
+								if (ban.getChampionId() != -1)
+								{
+									if (!enemyChampionInfoMap.containsKey(ban.getChampionId()))
+									{
+										logger.debug("Added champion id " + ban.getChampionId() + " to enemyChampionInfoMap (banned champion)");
+										ChampionInfo enemyChampionInfo = new ChampionInfo();
+										enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(ban.getChampionId()).getIconImgUrl());
+										enemyChampionInfo.setGamesPlayed(0);
+										enemyChampionInfo.setGamesLost(0);
+										enemyChampionInfo.setGamesBanned(1);
+										enemyChampionInfoMap.put(ban.getChampionId(), enemyChampionInfo);
+									} else // else bump up the games banned by one
+									{
+										logger.debug("Updated champion id " + ban.getChampionId() + " in enemyChampionInfoMap (banned champion)");
+										enemyChampionInfoMap.get(ban.getChampionId()).setGamesBanned(enemyChampionInfoMap.get(ban.getChampionId()).getGamesBanned() + 1);
+									}
+								}
+								else
+									logger.debug("No champion was banned for this person!");
+							}
 					}
 					catch (RiotApiException e)
 					{
@@ -202,84 +280,16 @@ public class MyWorstEnemyController
 		} else
 			logger.error("matchList is null!");
 
-		JsonObject selectedChampionJson = new JsonObject();
-		selectedChampionJson.addProperty("name", "Zac");
-		selectedChampionJson.addProperty("title", "the Secret Weapon");
-		selectedChampionJson.addProperty("loadingImageUrl", "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/Zac_0.jpg");
-		selectedChampionJson.addProperty("numOfGames", "13");
+		for (Map.Entry<Integer, ChampionInfo> entry : enemyChampionInfoMap.entrySet())
+		{
+			logger.info("Key = " + entry.getKey());
+			logger.info("Value.iconImageURL = " + entry.getValue().getIconImageUrl());
+			logger.info("Value.gamesPlayed = " + entry.getValue().getGamesPlayed());
+			logger.info("Value.gamesLost = " + entry.getValue().getGamesLost());
+			logger.info("Value.gamesBanned = " + entry.getValue().getGamesBanned());
+		}
 
-		JsonObject yasuo = new JsonObject();
-		yasuo.addProperty("name", "Yasuo");
-		yasuo.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Yasuo.png");
-		yasuo.addProperty("gamesPlayed", "1");
-		yasuo.addProperty("gamesLost", "1");
-		yasuo.addProperty("gamesBanned", "9");
-
-		JsonObject vayne = new JsonObject();
-		vayne.addProperty("name", "Vayne");
-		vayne.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Vayne.png");
-		vayne.addProperty("gamesPlayed", "2");
-		vayne.addProperty("gamesLost", "1");
-		vayne.addProperty("gamesBanned", "2");
-
-		JsonObject masterYi = new JsonObject();
-		masterYi.addProperty("name", "Master Yi");
-		masterYi.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/MasterYi.png");
-		masterYi.addProperty("gamesPlayed", "2");
-		masterYi.addProperty("gamesLost", "2");
-		masterYi.addProperty("gamesBanned", "4");
-
-		JsonObject akali = new JsonObject();
-		akali.addProperty("name", "Akali");
-		akali.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Akali.png");
-		akali.addProperty("gamesPlayed", "3");
-		akali.addProperty("gamesLost", "2");
-		akali.addProperty("gamesBanned", "9");
-
-		JsonObject jhin = new JsonObject();
-		jhin.addProperty("name", "Jhin");
-		jhin.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Jhin.png");
-		jhin.addProperty("gamesPlayed", "5");
-		jhin.addProperty("gamesLost", "2");
-		jhin.addProperty("gamesBanned", "0");
-
-		JsonObject urgot = new JsonObject();
-		urgot.addProperty("name", "Urgot");
-		urgot.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Urgot.png");
-		urgot.addProperty("gamesPlayed", "0");
-		urgot.addProperty("gamesLost", "0");
-		urgot.addProperty("gamesBanned", "13");
-
-		JsonObject leblanc = new JsonObject();
-		leblanc.addProperty("name", "Leblanc");
-		leblanc.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Leblanc.png");
-		leblanc.addProperty("gamesPlayed", "2");
-		leblanc.addProperty("gamesLost", "1");
-		leblanc.addProperty("gamesBanned", "5");
-
-		JsonObject xinZhao = new JsonObject();
-		xinZhao.addProperty("name", "Xin Zhao");
-		xinZhao.addProperty("iconImageUrl", "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/XinZhao.png");
-		xinZhao.addProperty("gamesPlayed", "7");
-		xinZhao.addProperty("gamesLost", "3");
-		xinZhao.addProperty("gamesBanned", "3");
-
-		JsonArray enemyChampions = new JsonArray();
-		enemyChampions.add(yasuo);
-		enemyChampions.add(vayne);
-		enemyChampions.add(masterYi);
-		enemyChampions.add(akali);
-		enemyChampions.add(jhin);
-		enemyChampions.add(urgot);
-		enemyChampions.add(leblanc);
-		enemyChampions.add(xinZhao);
-
-		JsonObject championJson = new JsonObject();
-		championJson.add("selectedChampion", selectedChampionJson);
-		championJson.add("enemyChampions", enemyChampions);
-
-		logger.info("selected champion results: " + championJson.toString());
-		return championJson.toString();
+		return JsonUtility.createSelectedChampionJson(championId, numOfGames, enemyChampionInfoMap, staticDataService);
 	}
 
 	@RequestMapping(method = RequestMethod.GET, value = "/getTeamData")
@@ -288,6 +298,7 @@ public class MyWorstEnemyController
 		return null;
 	}
 
+	// todo: add image urls (and splash art if we're feeling fancy)
 	@RequestMapping(method = RequestMethod.GET, value = "/loadChampionsTable")
 	public boolean loadChampionsTable()
 	{
@@ -295,20 +306,24 @@ public class MyWorstEnemyController
 		{
 			StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
 
+			String patchVersion = "10.5.1";
+
 			// Delete all rows from champions table
 			if (!staticDataService.deleteChampionsTableRows())
 				throw new Exception("Something went wrong deleting all the rows from the champions table");
 
 			// Create and fill champions table with data
-			ChampionList championList = api.getStaticChampionInfo("10.5.1");
+			ChampionList championList = api.getStaticChampionInfo(patchVersion);
 			for (Map.Entry<String, com.riot.dto.StaticData.Champion> entry : championList.getData().entrySet())
 			{
-//				String splashArtUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/splash/" + entry.getValue().getId() + "_0.jpg";
-				String splashArtUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/" + entry.getValue().getId() + "_0.jpg";
-				if (!staticDataService.insertIntoChampions(entry.getValue().getId(), entry.getValue().getName(), entry.getValue().getTitle(), entry.getValue().getKey(), splashArtUrl))
-					logger.info("(" + entry.getValue().getId() +", "+ entry.getValue().getName() + ", " + entry.getValue().getTitle() + ", " + entry.getValue().getKey() + ", " + splashArtUrl + ") was not inserted!");
+				String splashImgUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/splash/" + entry.getValue().getId() + "_0.jpg";
+				String loadingImgUrl = "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/" + entry.getValue().getId() + "_0.jpg";
+				String iconImgUrl = "http://ddragon.leagueoflegends.com/cdn/" + patchVersion + "/img/champion/" + entry.getValue().getId() + ".png";
+
+				if (!staticDataService.insertIntoChampions(entry.getValue().getId(), entry.getValue().getName(), entry.getValue().getTitle(), entry.getValue().getKey(), splashImgUrl, loadingImgUrl, iconImgUrl))
+					logger.info("(" + entry.getValue().getId() +", "+ entry.getValue().getName() + ", " + entry.getValue().getTitle() + ", " + entry.getValue().getKey() + ", " + splashImgUrl + ", " + loadingImgUrl + ", " + iconImgUrl + ") was not inserted!");
 				else
-					logger.info("(" + entry.getValue().getId() +", "+ entry.getValue().getName() + ", " + entry.getValue().getTitle() + ", " + entry.getValue().getKey() + ", " + splashArtUrl + ") was inserted!");
+					logger.info("(" + entry.getValue().getId() +", "+ entry.getValue().getName() + ", " + entry.getValue().getTitle() + ", " + entry.getValue().getKey() + ", " + splashImgUrl + ", " + loadingImgUrl + ", " + iconImgUrl + ") was inserted!");
 			}
 		}
 		catch (Exception e)
