@@ -55,7 +55,7 @@ public class MyWorstEnemyController
 	{
 		Summoner summoner;
 		MatchList matchList;
-		Map<Integer, Integer> championGamesMap = new HashMap<>();
+		Map<Integer, Integer> championGamesMap = new LinkedHashMap<>();
 		try
 		{
 			summoner = api.getSummonerByName(summonerName);
@@ -66,14 +66,16 @@ public class MyWorstEnemyController
 			while(loop)
 			{
 				// get matchlist by summoner name per 100
-				matchList = api.getMatchListByAccountId(summoner.getAccountId(), null, null, null, null, null, i*100, null);
+				matchList = api.getMatchListByAccountId(summoner.getAccountId(), null, null,
+						null, null, null, i*100, null);
 
 				if (matchList != null && matchList.getMatches().size() != 0)
 				{
 					for (int j = 0; j < matchList.getMatches().size(); j++)
 					{
-						// if timestamp is older than the start of patch 10.1 + NA1 offset, break (noted in https://github.com/CommunityDragon/Data/blob/master/patches.json)
-						if (matchList.getMatches().get(j).getTimestamp() < 1578477600 + 10800)
+						// if timestamp is older than the start of patch 10.1 + NA1 offset, break
+						// (noted in https://github.com/CommunityDragon/Data/blob/master/patches.json) times in json are in seconds, need miliseconds
+						if (matchList.getMatches().get(j).getTimestamp() < 1578488400000L)
 						{
 							logger.info("matchList.getMatches().get(j).getTimestamp() = " + matchList.getMatches().get(j).getTimestamp());
 							loop = false;
@@ -100,7 +102,6 @@ public class MyWorstEnemyController
 					}
 
 					i++;
-					break;
 				}
 				else
 				{
@@ -114,55 +115,39 @@ public class MyWorstEnemyController
 			return e.getMessage();
 		}
 
-		// convert championGamesMap into two arrays with matching indexes
-		Integer[] listOfChampionKeys = new Integer[championGamesMap.size()];
-		Integer[] listOfChampionNumOfGames = new Integer[championGamesMap.size()];
-		int index = 0;
-		for (Map.Entry<Integer, Integer> mapEntry : championGamesMap.entrySet())
-		{
-			listOfChampionKeys[index] = mapEntry.getKey();
-			listOfChampionNumOfGames[index] = mapEntry.getValue();
-			index++;
-		}
+		// sort into new LinkedHashMap
+		LinkedHashMap<Integer, Integer> sortedChampionsGameMap = new LinkedHashMap<>();
 
-		// sort champions by number of games (bubble sort cus i'm lazy)
-		boolean swapped;
-		do
-		{
-			swapped = false;
-			for (int i = 1; i < listOfChampionKeys.length; i++)
-			{
-				if (listOfChampionNumOfGames[i - 1] < listOfChampionNumOfGames[i])
-				{
-					Integer temp = listOfChampionNumOfGames[i - 1];
-					listOfChampionNumOfGames[i - 1] = listOfChampionNumOfGames[i];
-					listOfChampionNumOfGames[i] = temp;
-					temp = listOfChampionKeys[i - 1];
-					listOfChampionKeys[i - 1] = listOfChampionKeys[i];
-					listOfChampionKeys[i] = temp;
-					swapped = true;
-				}
-			}
-		} while (swapped);
+		championGamesMap.entrySet()
+				.stream()
+				.sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+				.forEachOrdered(x -> sortedChampionsGameMap.put(x.getKey(), x.getValue()));
 
 		int upperBound = 5;
-		if (listOfChampionKeys.length < 5)
-			upperBound = listOfChampionKeys.length;
+		if (sortedChampionsGameMap.size() < upperBound)
+			upperBound = sortedChampionsGameMap.size();
 
 		StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
 
 		JsonArray championJsonArr = new JsonArray();
 		try
 		{
-			for (int i = 0; i < upperBound; i++)
+			int i = 0;
+			for (Map.Entry<Integer, Integer> championEntry : sortedChampionsGameMap.entrySet())
 			{
-				Champion champion = staticDataService.getChampionByKey(listOfChampionKeys[i]);
+				// enforce upperBound
+				if (i >= upperBound)
+					break;
+				else
+					i++;
+
+				Champion champion = staticDataService.getChampionByKey(championEntry.getKey());
 				JsonObject championJson = new JsonObject();
 				championJson.addProperty("name", champion.getName());
 				championJson.addProperty("title", champion.getTitle());
 				championJson.addProperty("splashArtUrl", champion.getLoadingImgUrl());
 				championJson.addProperty("id", champion.getId());
-				championJson.addProperty("numOfGames", listOfChampionNumOfGames[i]);
+				championJson.addProperty("numOfGames", championEntry.getValue());
 				championJsonArr.add(championJson);
 			}
 		} catch (Exception e)
