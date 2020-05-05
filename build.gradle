@@ -30,7 +30,7 @@ targetCompatibility = 1.8
 
 dependencies
 {
-	compile fileTree(dir: 'lib', include: 'riot-api-1.0.0.jar')
+	compile fileTree(dir: 'lib', include: '*.jar')
 
 	compile "com.google.guava:guava:17.0"
 	compile "com.google.code.gson:gson:2.8.0"
@@ -60,6 +60,7 @@ dependencies
 test {
 	useJUnitPlatform()
 }
+
 wrapper {
 	description = "Generates gradlew[.bat] scripts"
 	gradleVersion = '5.4.1'

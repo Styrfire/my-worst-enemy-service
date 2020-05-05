@@ -55,43 +55,64 @@ public class MyWorstEnemyController
 	{
 		Summoner summoner;
 		MatchList matchList;
+		Map<Integer, Integer> championGamesMap = new HashMap<>();
 		try
 		{
 			summoner = api.getSummonerByName(summonerName);
 
-			// get ranked stats by summoner name
-			matchList = api.getMatchListByAccountId(summoner.getAccountId());
+			int i = 0;
+			boolean loop = true;
+
+			while(loop)
+			{
+				// get matchlist by summoner name per 100
+				matchList = api.getMatchListByAccountId(summoner.getAccountId(), null, null, null, null, null, i*100, null);
+
+				if (matchList != null && matchList.getMatches().size() != 0)
+				{
+					for (int j = 0; j < matchList.getMatches().size(); j++)
+					{
+						// if timestamp is older than the start of patch 10.1 + NA1 offset, break (noted in https://github.com/CommunityDragon/Data/blob/master/patches.json)
+						if (matchList.getMatches().get(j).getTimestamp() < 1578477600 + 10800)
+						{
+							logger.info("matchList.getMatches().get(j).getTimestamp() = " + matchList.getMatches().get(j).getTimestamp());
+							loop = false;
+							break;
+						}
+
+						if (matchList.getMatches().get(j).getQueue() == queue)
+						{
+							if (queue == 400)
+								logger.debug("index: " + j + " was a draft game!");
+							else if (queue == 420)
+								logger.debug("index: " + j + " was a ranked game!");
+
+							// if champion is in the list
+							if (championGamesMap.containsKey(matchList.getMatches().get(j).getChampion()))
+							{
+								Integer games = championGamesMap.get(matchList.getMatches().get(j).getChampion());
+								championGamesMap.replace(matchList.getMatches().get(j).getChampion(), ++games);
+							} else
+							{
+								championGamesMap.put(matchList.getMatches().get(j).getChampion(), 1);
+							}
+						}
+					}
+
+					i++;
+					break;
+				}
+				else
+				{
+					logger.info("matchList is null!");
+					break;
+				}
+			}
 		} catch (RiotApiException e)
 		{
 			logger.error(e.getMessage());
 			return e.getMessage();
 		}
-
-		Map<Integer, Integer> championGamesMap = new HashMap<>();
-		if (matchList != null)
-		{
-			for (int i = 0; i < matchList.getEndIndex(); i++)
-			{
-				if (matchList.getMatches().get(i).getQueue() == queue)
-				{
-					if (queue == 400)
-						logger.info("index: " + i + " was a draft game!");
-					else if (queue == 420)
-						logger.info("index: " + i + " was a ranked game!");
-
-					// if champion is in the list
-					if (championGamesMap.containsKey(matchList.getMatches().get(i).getChampion()))
-					{
-						Integer games = championGamesMap.get(matchList.getMatches().get(i).getChampion());
-						championGamesMap.replace(matchList.getMatches().get(i).getChampion(), ++games);
-					} else
-					{
-						championGamesMap.put(matchList.getMatches().get(i).getChampion(), 1);
-					}
-				}
-			}
-		} else
-			logger.error("matchList is null!");
 
 		// convert championGamesMap into two arrays with matching indexes
 		Integer[] listOfChampionKeys = new Integer[championGamesMap.size()];
