@@ -55,93 +55,99 @@ public class MyWorstEnemyController
 	{
 		Summoner summoner;
 		MatchList matchList;
+		Map<Integer, Integer> championGamesMap = new LinkedHashMap<>();
 		try
 		{
 			summoner = api.getSummonerByName(summonerName);
 
-			// get ranked stats by summoner name
-			matchList = api.getMatchListByAccountId(summoner.getAccountId());
+			int i = 0;
+			boolean loop = true;
+
+			while(loop)
+			{
+				// get matchlist by summoner name per 100
+				matchList = api.getMatchListByAccountId(summoner.getAccountId(), null, null,
+						null, null, null, i*100, null);
+
+				if (matchList != null && matchList.getMatches().size() != 0)
+				{
+					for (int j = 0; j < matchList.getMatches().size(); j++)
+					{
+						// if timestamp is older than the start of patch 10.1 + NA1 offset, break
+						// (noted in https://github.com/CommunityDragon/Data/blob/master/patches.json) times in json are in seconds, need miliseconds
+						if (matchList.getMatches().get(j).getTimestamp() < 1578488400000L)
+						{
+							logger.info("matchList.getMatches().get(j).getTimestamp() = " + matchList.getMatches().get(j).getTimestamp());
+							loop = false;
+							break;
+						}
+
+						if (matchList.getMatches().get(j).getQueue() == queue)
+						{
+							if (queue == 400)
+								logger.debug("index: " + j + " was a draft game!");
+							else if (queue == 420)
+								logger.debug("index: " + j + " was a ranked game!");
+
+							// if champion is in the list
+							if (championGamesMap.containsKey(matchList.getMatches().get(j).getChampion()))
+							{
+								Integer games = championGamesMap.get(matchList.getMatches().get(j).getChampion());
+								championGamesMap.replace(matchList.getMatches().get(j).getChampion(), ++games);
+							} else
+							{
+								championGamesMap.put(matchList.getMatches().get(j).getChampion(), 1);
+							}
+						}
+					}
+
+					i++;
+				}
+				else
+				{
+					logger.info("matchList is null!");
+					break;
+				}
+			}
 		} catch (RiotApiException e)
 		{
 			logger.error(e.getMessage());
 			return e.getMessage();
 		}
 
-		Map<Integer, Integer> championGamesMap = new HashMap<>();
-		if (matchList != null)
-		{
-			for (int i = 0; i < matchList.getEndIndex(); i++)
-			{
-				if (matchList.getMatches().get(i).getQueue() == queue)
-				{
-					if (queue == 400)
-						logger.info("index: " + i + " was a draft game!");
-					else if (queue == 420)
-						logger.info("index: " + i + " was a ranked game!");
+		// sort into new LinkedHashMap
+		LinkedHashMap<Integer, Integer> sortedChampionsGameMap = new LinkedHashMap<>();
 
-					// if champion is in the list
-					if (championGamesMap.containsKey(matchList.getMatches().get(i).getChampion()))
-					{
-						Integer games = championGamesMap.get(matchList.getMatches().get(i).getChampion());
-						championGamesMap.replace(matchList.getMatches().get(i).getChampion(), ++games);
-					} else
-					{
-						championGamesMap.put(matchList.getMatches().get(i).getChampion(), 1);
-					}
-				}
-			}
-		} else
-			logger.error("matchList is null!");
-
-		// convert championGamesMap into two arrays with matching indexes
-		Integer[] listOfChampionKeys = new Integer[championGamesMap.size()];
-		Integer[] listOfChampionNumOfGames = new Integer[championGamesMap.size()];
-		int index = 0;
-		for (Map.Entry<Integer, Integer> mapEntry : championGamesMap.entrySet())
-		{
-			listOfChampionKeys[index] = mapEntry.getKey();
-			listOfChampionNumOfGames[index] = mapEntry.getValue();
-			index++;
-		}
-
-		// sort champions by number of games (bubble sort cus i'm lazy)
-		boolean swapped;
-		do
-		{
-			swapped = false;
-			for (int i = 1; i < listOfChampionKeys.length; i++)
-			{
-				if (listOfChampionNumOfGames[i - 1] < listOfChampionNumOfGames[i])
-				{
-					Integer temp = listOfChampionNumOfGames[i - 1];
-					listOfChampionNumOfGames[i - 1] = listOfChampionNumOfGames[i];
-					listOfChampionNumOfGames[i] = temp;
-					temp = listOfChampionKeys[i - 1];
-					listOfChampionKeys[i - 1] = listOfChampionKeys[i];
-					listOfChampionKeys[i] = temp;
-					swapped = true;
-				}
-			}
-		} while (swapped);
+		championGamesMap.entrySet()
+				.stream()
+				.sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+				.forEachOrdered(x -> sortedChampionsGameMap.put(x.getKey(), x.getValue()));
 
 		int upperBound = 5;
-		if (listOfChampionKeys.length < 5)
-			upperBound = listOfChampionKeys.length;
+		if (sortedChampionsGameMap.size() < upperBound)
+			upperBound = sortedChampionsGameMap.size();
 
 		StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
 
 		JsonArray championJsonArr = new JsonArray();
 		try
 		{
-			for (int i = 0; i < upperBound; i++)
+			int i = 0;
+			for (Map.Entry<Integer, Integer> championEntry : sortedChampionsGameMap.entrySet())
 			{
-				Champion champion = staticDataService.getChampionByKey(listOfChampionKeys[i]);
+				// enforce upperBound
+				if (i >= upperBound)
+					break;
+				else
+					i++;
+
+				Champion champion = staticDataService.getChampionByKey(championEntry.getKey());
 				JsonObject championJson = new JsonObject();
 				championJson.addProperty("name", champion.getName());
 				championJson.addProperty("title", champion.getTitle());
 				championJson.addProperty("splashArtUrl", champion.getLoadingImgUrl());
 				championJson.addProperty("id", champion.getId());
-				championJson.addProperty("numOfGames", listOfChampionNumOfGames[i]);
+				championJson.addProperty("numOfGames", championEntry.getValue());
 				championJsonArr.add(championJson);
 			}
 		} catch (Exception e)
@@ -164,121 +170,140 @@ public class MyWorstEnemyController
 	{
 		Summoner summoner;
 		MatchList matchList;
+
+		StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
+
+		Match match;
+		LinkedHashMap<Integer, ChampionInfo> enemyChampionInfoMap = new LinkedHashMap<>();
+		int numOfGames = 0;
+
 		try
 		{
 			summoner = api.getSummonerByName(summonerName.replace('+', ' '));
 
 			// get ranked stats by summoner name
-			matchList = api.getMatchListByAccountId(summoner.getAccountId());
-		} catch (RiotApiException e)
+			int i = 0;
+			boolean loop = true;
+
+			while(loop)
+			{
+				// get matchlist by summoner name per 100
+				matchList = api.getMatchListByAccountId(summoner.getAccountId(), null, null,
+						null, null, null, i*100, null);
+
+				if (matchList != null && matchList.getMatches().size() != 0)
+				{
+					for (int j = 0; j < matchList.getMatches().size(); j++)
+					{
+						// if timestamp is older than the start of patch 10.1 + NA1 offset, break
+						// (noted in https://github.com/CommunityDragon/Data/blob/master/patches.json) times in json are in seconds, need miliseconds
+						if (matchList.getMatches().get(j).getTimestamp() < 1578488400000L)
+						{
+							logger.info("matchList.getMatches().get(j).getTimestamp() = " + matchList.getMatches().get(j).getTimestamp());
+							loop = false;
+							break;
+						}
+
+						if (matchList.getMatches().get(j).getQueue() == queue && matchList.getMatches().get(j).getChampion() == championId)
+						{
+							numOfGames++;
+							if (queue == 400)
+								logger.debug("index: " + j + " was a draft game!");
+							else if (queue == 420)
+								logger.debug("index: " + j + " was a ranked game!");
+
+							int teamId = 0;
+							match = api.getMatchByMatchId(matchList.getMatches().get(j).getGameId());
+
+							List<Participant> participants = match.getParticipants();
+							// get team id for selected champion
+							for (Participant participant : participants)
+								if (participant.getChampionId() == championId)
+								{
+									teamId = participant.getTeamId();
+									logger.info("Team Id for selected champion is " + teamId);
+								}
+
+							if (teamId == 0)
+								throw new RiotApiException("Could not find team for selected champion!");
+
+							// did team with id 100 win?
+							boolean blueTeamWin = (match.getTeams().get(0).getTeamId() == 100 && match.getTeams().get(0).getWin().equals("Win")) ||
+									(!(match.getTeams().get(0).getTeamId() == 100) && !(match.getTeams().get(0).getWin().equals("Win")));
+
+							// if participant is an enemy of the selected champion, add them to the map if they don't
+							// already exist, otherwise, bump numbers
+							for (Participant participant : participants)
+							{
+								if (participant.getTeamId() != teamId)
+								{
+									// if champion id doesn't exist in enemyChampionInfoMap, add it
+									if (!enemyChampionInfoMap.containsKey(participant.getChampionId()))
+									{
+										logger.debug("Added champion id " + participant.getChampionId() + " to enemyChampionInfoMap (unbanned champion)");
+										ChampionInfo enemyChampionInfo = new ChampionInfo();
+										enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(participant.getChampionId()).getIconImgUrl());
+										enemyChampionInfo.setGamesPlayed(1);
+										if ((participant.getTeamId() == 100 && blueTeamWin) || (participant.getTeamId() == 200 && !blueTeamWin))
+											enemyChampionInfo.setGamesLost(1);
+										else
+											enemyChampionInfo.setGamesLost(0);
+										enemyChampionInfo.setGamesBanned(0);
+										enemyChampionInfoMap.put(participant.getChampionId(), enemyChampionInfo);
+									}
+									else
+									{
+										logger.debug("Updated champion id " + participant.getChampionId() + " in enemyChampionInfoMap (unbanned champion)");
+										enemyChampionInfoMap.get(participant.getChampionId()).setGamesPlayed(enemyChampionInfoMap.get(participant.getChampionId()).getGamesPlayed() + 1);
+										if ((participant.getTeamId() == 100 && blueTeamWin) || (participant.getTeamId() == 200 && !blueTeamWin))
+											enemyChampionInfoMap.get(participant.getChampionId()).setGamesLost(enemyChampionInfoMap.get(participant.getChampionId()).getGamesLost() + 1);
+									}
+								}
+							}
+
+							// add banned champions to list
+							for (TeamStats team : match.getTeams())
+								for (TeamBans ban : team.getBans())
+								{
+									// if champion id doesn't exist in enemyChampionInfoMap, add it, unless it's -1 (which is no ban) to which you ignore it
+									if (ban.getChampionId() != -1)
+									{
+										if (!enemyChampionInfoMap.containsKey(ban.getChampionId()))
+										{
+											logger.debug("Added champion id " + ban.getChampionId() + " to enemyChampionInfoMap (banned champion)");
+											ChampionInfo enemyChampionInfo = new ChampionInfo();
+											enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(ban.getChampionId()).getIconImgUrl());
+											enemyChampionInfo.setGamesPlayed(0);
+											enemyChampionInfo.setGamesLost(0);
+											enemyChampionInfo.setGamesBanned(1);
+											enemyChampionInfoMap.put(ban.getChampionId(), enemyChampionInfo);
+										} else // else bump up the games banned by one
+										{
+											logger.debug("Updated champion id " + ban.getChampionId() + " in enemyChampionInfoMap (banned champion)");
+											enemyChampionInfoMap.get(ban.getChampionId()).setGamesBanned(enemyChampionInfoMap.get(ban.getChampionId()).getGamesBanned() + 1);
+										}
+									}
+									else
+										logger.debug("No champion was banned for this person!");
+								}
+						}
+					}
+
+					i++;
+				}
+				else
+				{
+					logger.info("matchList is null!");
+					break;
+				}
+			}
+		}
+		catch (RiotApiException e)
 		{
 			logger.error(e.getMessage());
 			return e.getMessage();
 		}
 
-		StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
-
-		Match match;
-		Map<Integer, ChampionInfo> enemyChampionInfoMap = new HashMap<>();
-		int numOfGames = 0;
-		if (matchList != null)
-		{
-			for (int i = 0; i < matchList.getEndIndex(); i++)
-			{
-				if ((matchList.getMatches().get(i).getQueue() == queue) && (matchList.getMatches().get(i).getChampion() == championId))
-				{
-					numOfGames++;
-					if (queue == 400)
-						logger.info("index: " + i + " was a draft game!");
-					else if (queue == 420)
-						logger.info("index: " + i + " was a ranked game!");
-
-					try
-					{
-						int teamId = 0;
-						match = api.getMatchByMatchId(matchList.getMatches().get(i).getGameId());
-
-						List<Participant> participants = match.getParticipants();
-						// get team id for selected champion
-						for (Participant participant : participants)
-							if (participant.getChampionId() == championId)
-							{
-								teamId = participant.getTeamId();
-								logger.info("Team Id for selected champion is " + teamId);
-							}
-
-						if (teamId == 0)
-							throw new RiotApiException("Could not find team for selected champion!");
-
-						// did team with id 100 win?
-						boolean blueTeamWin = (match.getTeams().get(0).getTeamId() == 100 && match.getTeams().get(0).getWin().equals("Win")) ||
-								(!(match.getTeams().get(0).getTeamId() == 100) && !(match.getTeams().get(0).getWin().equals("Win")));
-
-						// if participant is an enemy of the selected champion, add them to the map if they don't
-						// already exist, otherwise, bump numbers
-						for (Participant participant : participants)
-						{
-							if (participant.getTeamId() != teamId)
-							{
-								// if champion id doesn't exist in enemyChampionInfoMap, add it
-								if (!enemyChampionInfoMap.containsKey(participant.getChampionId()))
-								{
-									logger.debug("Added champion id " + participant.getChampionId() + " to enemyChampionInfoMap (unbanned champion)");
-									ChampionInfo enemyChampionInfo = new ChampionInfo();
-									enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(participant.getChampionId()).getIconImgUrl());
-									enemyChampionInfo.setGamesPlayed(1);
-									if ((participant.getTeamId() == 100 && blueTeamWin) || (participant.getTeamId() == 200 && !blueTeamWin))
-										enemyChampionInfo.setGamesLost(1);
-									else
-										enemyChampionInfo.setGamesLost(0);
-									enemyChampionInfo.setGamesBanned(0);
-									enemyChampionInfoMap.put(participant.getChampionId(), enemyChampionInfo);
-								}
-								else
-								{
-									logger.debug("Updated champion id " + participant.getChampionId() + " in enemyChampionInfoMap (unbanned champion)");
-									enemyChampionInfoMap.get(participant.getChampionId()).setGamesPlayed(enemyChampionInfoMap.get(participant.getChampionId()).getGamesPlayed() + 1);
-									if ((participant.getTeamId() == 100 && blueTeamWin) || (participant.getTeamId() == 200 && !blueTeamWin))
-										enemyChampionInfoMap.get(participant.getChampionId()).setGamesLost(enemyChampionInfoMap.get(participant.getChampionId()).getGamesLost() + 1);
-								}
-							}
-						}
-
-						// if
-						for (TeamStats team : match.getTeams())
-							for (TeamBans ban : team.getBans())
-							{
-								// if champion id doesn't exist in enemyChampionInfoMap, add it, unless it's -1 (which is no ban) to which you ignore it
-								if (ban.getChampionId() != -1)
-								{
-									if (!enemyChampionInfoMap.containsKey(ban.getChampionId()))
-									{
-										logger.debug("Added champion id " + ban.getChampionId() + " to enemyChampionInfoMap (banned champion)");
-										ChampionInfo enemyChampionInfo = new ChampionInfo();
-										enemyChampionInfo.setIconImageUrl(staticDataService.getChampionByKey(ban.getChampionId()).getIconImgUrl());
-										enemyChampionInfo.setGamesPlayed(0);
-										enemyChampionInfo.setGamesLost(0);
-										enemyChampionInfo.setGamesBanned(1);
-										enemyChampionInfoMap.put(ban.getChampionId(), enemyChampionInfo);
-									} else // else bump up the games banned by one
-									{
-										logger.debug("Updated champion id " + ban.getChampionId() + " in enemyChampionInfoMap (banned champion)");
-										enemyChampionInfoMap.get(ban.getChampionId()).setGamesBanned(enemyChampionInfoMap.get(ban.getChampionId()).getGamesBanned() + 1);
-									}
-								}
-								else
-									logger.debug("No champion was banned for this person!");
-							}
-					}
-					catch (RiotApiException e)
-					{
-						e.printStackTrace();
-						return e.getMessage();
-					}
-				}
-			}
-		} else
-			logger.error("matchList is null!");
 
 		for (Map.Entry<Integer, ChampionInfo> entry : enemyChampionInfoMap.entrySet())
 		{

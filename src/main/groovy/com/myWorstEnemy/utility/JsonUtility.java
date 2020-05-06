@@ -7,13 +7,15 @@ import com.myWorstEnemy.service.domain.ChampionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class JsonUtility
 {
 	private static Logger logger = LoggerFactory.getLogger(JsonUtility.class);
 
-	public static String createSelectedChampionJson(int championId, int numOfGames, Map<Integer, ChampionInfo> enemyChampionInfoMap, StaticDataService staticDataService)
+	public static String createSelectedChampionJson(int championId, int numOfGames, LinkedHashMap<Integer, ChampionInfo> enemyChampionInfoMap, StaticDataService staticDataService)
 	{
 		JsonObject selectedChampionJson = new JsonObject();
 		selectedChampionJson.addProperty("name", staticDataService.getChampionByKey(championId).getName());
@@ -23,56 +25,32 @@ public class JsonUtility
 
 		JsonArray enemyChampions = new JsonArray();
 
-		// convert championGamesMap into two arrays with matching indexes
-		Integer[] championKeyList = new Integer[enemyChampionInfoMap.size()];
-		ChampionInfo[] championInfoList = new ChampionInfo[enemyChampionInfoMap.size()];
-		int index = 0;
-		for (Map.Entry<Integer, ChampionInfo> mapEntry : enemyChampionInfoMap.entrySet())
-		{
-			championKeyList[index] = mapEntry.getKey();
-			championInfoList[index] = mapEntry.getValue();
-			index++;
-		}
+		LinkedHashMap<Integer, ChampionInfo> sortedEnemyChampionInfoMap = new LinkedHashMap<>();
 
-		// sort champions by number of games (bubble sort cus i'm lazy)
-		boolean swapped;
-		do
-		{
-			swapped = false;
-			for (int i = 1; i < championKeyList.length; i++)
-			{
-				if ((championInfoList[i - 1].getGamesPlayed() + championInfoList[i - 1].getGamesBanned()) < (championInfoList[i].getGamesPlayed() + championInfoList[i].getGamesBanned()))
-				{
-					ChampionInfo temp = championInfoList[i - 1];
-					championInfoList[i - 1] = championInfoList[i];
-					championInfoList[i] = temp;
-					Integer temp1 = championKeyList[i - 1];
-					championKeyList[i - 1] = championKeyList[i];
-					championKeyList[i] = temp1;
-					swapped = true;
-				}
-			}
-		} while (swapped);
+		enemyChampionInfoMap.entrySet()
+				.stream()
+				.sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+				.forEachOrdered(x -> sortedEnemyChampionInfoMap.put(x.getKey(), x.getValue()));
 
-		for (int i = 0; i < championKeyList.length; i++)
+		for (Map.Entry<Integer, ChampionInfo> enemyChampionInfoEntry : sortedEnemyChampionInfoMap.entrySet())
 		{
 			JsonObject currentChampion = new JsonObject();
-			currentChampion.addProperty("name", staticDataService.getChampionByKey(championKeyList[i]).getName());
-			currentChampion.addProperty("iconImageUrl", staticDataService.getChampionByKey(championKeyList[i]).getIconImgUrl());
-			currentChampion.addProperty("gamesPlayed", championInfoList[i].getGamesPlayed());
-			currentChampion.addProperty("gamesLost", championInfoList[i].getGamesLost());
-			currentChampion.addProperty("gamesBanned", championInfoList[i].getGamesBanned());
+			currentChampion.addProperty("name", staticDataService.getChampionByKey(enemyChampionInfoEntry.getKey()).getName());
+			currentChampion.addProperty("iconImageUrl", staticDataService.getChampionByKey(enemyChampionInfoEntry.getKey()).getIconImgUrl());
+			currentChampion.addProperty("gamesPlayed", enemyChampionInfoEntry.getValue().getGamesPlayed());
+			currentChampion.addProperty("gamesLost", enemyChampionInfoEntry.getValue().getGamesLost());
+			currentChampion.addProperty("gamesBanned", enemyChampionInfoEntry.getValue().getGamesBanned());
 
 			enemyChampions.add(currentChampion);
 		}
 
-		JsonObject championJsonMock = new JsonObject();
-		championJsonMock.add("selectedChampion", selectedChampionJson);
-		championJsonMock.add("enemyChampions", enemyChampions);
+		JsonObject championJson = new JsonObject();
+		championJson.add("selectedChampion", selectedChampionJson);
+		championJson.add("enemyChampions", enemyChampions);
 
-		logger.info("selected mock champion results: " + championJsonMock.toString());
+		logger.info("selected mock champion results: " + championJson.toString());
 
-		return  championJsonMock.toString();
+		return  championJson.toString();
 	}
 
 	public static String createSelectedChampionJsonMock()
