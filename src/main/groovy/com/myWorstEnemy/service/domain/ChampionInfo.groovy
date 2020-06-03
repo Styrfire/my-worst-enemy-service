@@ -9,12 +9,9 @@ class ChampionInfo implements Comparable<ChampionInfo> {
 	@Override
 	int compareTo(ChampionInfo anotherChampionInfo)
 	{
-		return compare(this.gamesPlayed, this.gamesBanned, anotherChampionInfo.gamesPlayed, anotherChampionInfo.gamesBanned)
+		// if this games played + games banned < another games played + games banned return -1
+		// else if this games played + games banned > another games played + games banned return 1
+		// else return 0
+		return ((this.gamesPlayed + this.gamesBanned) < (anotherChampionInfo.gamesPlayed + anotherChampionInfo.gamesBanned)) ? -1 : (((this.gamesPlayed + this.gamesBanned) > (anotherChampionInfo.gamesPlayed + anotherChampionInfo.gamesBanned)) ? 1 : 0)
 	}
-
-	static int compare(int gamesPlayed1, int gamesBanned1, int gamesPlayed2, int gamesBanned2)
-	{
-		return ((gamesPlayed1 + gamesBanned1) < (gamesPlayed2 + gamesBanned2)) ? -1 : (((gamesPlayed1 + gamesBanned1) < (gamesPlayed2 + gamesBanned2)) ? 0 : 1)
-	}
-
 }

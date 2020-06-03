@@ -48,7 +48,7 @@ public class JsonUtility
 		championJson.add("selectedChampion", selectedChampionJson);
 		championJson.add("enemyChampions", enemyChampions);
 
-		logger.info("selected mock champion results: " + championJson.toString());
+		logger.info("selected champion results: " + championJson.toString());
 
 		return  championJson.toString();
 	}

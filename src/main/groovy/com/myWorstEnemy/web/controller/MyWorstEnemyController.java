@@ -314,6 +314,7 @@ public class MyWorstEnemyController
 			logger.info("Value.gamesBanned = " + entry.getValue().getGamesBanned());
 		}
 
+		// sorts the champion info map by relevancy and returns a json string
 		return JsonUtility.createSelectedChampionJson(championId, numOfGames, enemyChampionInfoMap, staticDataService);
 	}
 
