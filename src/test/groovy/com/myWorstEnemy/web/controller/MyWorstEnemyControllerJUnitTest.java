@@ -30,7 +30,7 @@ class MyWorstEnemyControllerJUnitTest //extends Specification
 	@BeforeEach
 	void setup()
 	{
-		controller = new MyWorstEnemyController(namedParameterJdbcTemplateMock);
+		controller = new MyWorstEnemyController(namedParameterJdbcTemplateMock, 1);
 
 		namedParameterJdbcTemplateMock = Mockito.mock(NamedParameterJdbcTemplate.class);
 		riotApiMock = Mockito.mock(RiotApi.class);

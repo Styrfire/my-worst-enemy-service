@@ -23,6 +23,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
+import java.sql.Timestamp;
 import java.util.*;
 
 @CrossOrigin(origins = "*")
@@ -34,14 +35,21 @@ public class MyWorstEnemyController
 
 	private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 	private RiotApi api;
+	private Timestamp timestamp;
 
 	private static Logger logger = LoggerFactory.getLogger(MyWorstEnemyController.class);
 
 	@Inject
-	MyWorstEnemyController(NamedParameterJdbcTemplate namedParameterJdbcTemplate)
+	MyWorstEnemyController(NamedParameterJdbcTemplate namedParameterJdbcTemplate, @Value("${timestamp.numOfWeeks:-1}") int numOfWeeksTimestamp)
 	{
 		this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
 		this.api = new RiotApi(System.getProperty("api.key"));
+
+		logger.info("numOfWeeksTimestamp = " + numOfWeeksTimestamp);
+		if (numOfWeeksTimestamp == -1)
+			this.timestamp = new Timestamp(1578488400000L); // timestamp from beginning of season
+		else
+			this.timestamp = new Timestamp(System.currentTimeMillis() - (604800000L*numOfWeeksTimestamp)); // timestamp from numOfWeeks ago
 	}
 
 	@RequestMapping("/")
@@ -75,7 +83,7 @@ public class MyWorstEnemyController
 					{
 						// if timestamp is older than the start of patch 10.1 + NA1 offset, break
 						// (noted in https://github.com/CommunityDragon/Data/blob/master/patches.json) times in json are in seconds, need miliseconds
-						if (matchList.getMatches().get(j).getTimestamp() < 1578488400000L)
+						if (matchList.getMatches().get(j).getTimestamp() < timestamp.getTime())
 						{
 							logger.info("matchList.getMatches().get(j).getTimestamp() = " + matchList.getMatches().get(j).getTimestamp());
 							loop = false;
@@ -196,8 +204,8 @@ public class MyWorstEnemyController
 					for (int j = 0; j < matchList.getMatches().size(); j++)
 					{
 						// if timestamp is older than the start of patch 10.1 + NA1 offset, break
-						// (noted in https://github.com/CommunityDragon/Data/blob/master/patches.json) times in json are in seconds, need miliseconds
-						if (matchList.getMatches().get(j).getTimestamp() < 1578488400000L)
+						// (noted in https://github.com/CommunityDragon/Data/blob/master/patches.json) times in json are in seconds, need miliseconds (unix timestamp)
+						if (matchList.getMatches().get(j).getTimestamp() < timestamp.getTime())
 						{
 							logger.info("matchList.getMatches().get(j).getTimestamp() = " + matchList.getMatches().get(j).getTimestamp());
 							loop = false;
@@ -227,7 +235,7 @@ public class MyWorstEnemyController
 							if (teamId == 0)
 								throw new RiotApiException("Could not find team for selected champion!");
 
-							// did team with id 100 win?
+							// did team with id 100 (blue team) win?
 							boolean blueTeamWin = (match.getTeams().get(0).getTeamId() == 100 && match.getTeams().get(0).getWin().equals("Win")) ||
 									(!(match.getTeams().get(0).getTeamId() == 100) && !(match.getTeams().get(0).getWin().equals("Win")));
 
@@ -307,11 +315,16 @@ public class MyWorstEnemyController
 
 		for (Map.Entry<Integer, ChampionInfo> entry : enemyChampionInfoMap.entrySet())
 		{
+			// for each entry, add the total possible games and log info
+			ChampionInfo championInfo = entry.getValue();
+			championInfo.setTotalPossibleGames(numOfGames);
+			entry.setValue(championInfo);
 			logger.info("Key = " + entry.getKey());
 			logger.info("Value.iconImageURL = " + entry.getValue().getIconImageUrl());
 			logger.info("Value.gamesPlayed = " + entry.getValue().getGamesPlayed());
 			logger.info("Value.gamesLost = " + entry.getValue().getGamesLost());
 			logger.info("Value.gamesBanned = " + entry.getValue().getGamesBanned());
+			logger.info("Value.totalPossibleGames = " + entry.getValue().getTotalPossibleGames());
 		}
 
 		// sorts the champion info map by relevancy and returns a json string

@@ -18,3 +18,8 @@ riot.datasource:
 #400 = draft pick
 #420 = ranked solo
 queue: 420
+
+# comment out or set to -1 to grab data from beginning of season
+timestamp.numOfWeeks: 1
+
+logging.level.root: INFO #DEBUG
