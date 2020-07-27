@@ -7,6 +7,8 @@ import com.myWorstEnemy.service.domain.ChampionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -34,11 +36,29 @@ public class JsonUtility
 
 		for (Map.Entry<Integer, ChampionInfo> enemyChampionInfoEntry : sortedEnemyChampionInfoMap.entrySet())
 		{
+			BigDecimal gamesPlayed = BigDecimal.valueOf(enemyChampionInfoEntry.getValue().getGamesPlayed());
+			BigDecimal totalGamesNotBanned = BigDecimal.valueOf(enemyChampionInfoEntry.getValue().getTotalPossibleGames() - enemyChampionInfoEntry.getValue().getGamesBanned());
+			BigDecimal gamesLost = BigDecimal.valueOf(enemyChampionInfoEntry.getValue().getGamesLost());
+
 			JsonObject currentChampion = new JsonObject();
 			currentChampion.addProperty("name", staticDataService.getChampionByKey(enemyChampionInfoEntry.getKey()).getName());
 			currentChampion.addProperty("iconImageUrl", staticDataService.getChampionByKey(enemyChampionInfoEntry.getKey()).getIconImgUrl());
+			// pick and win rate are percentages
+			if (totalGamesNotBanned.intValue() != 0)
+				currentChampion.addProperty("pickRate", gamesPlayed.divide(totalGamesNotBanned, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)));
+			else
+				currentChampion.addProperty("pickRate", "0");
+
+			// protect against divide by 0
+			if (enemyChampionInfoEntry.getValue().getGamesPlayed() != 0)
+				currentChampion.addProperty("winRate", gamesLost.divide(gamesPlayed, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)));
+			else
+				currentChampion.addProperty("winRate", "0");
+
 			currentChampion.addProperty("gamesPlayed", enemyChampionInfoEntry.getValue().getGamesPlayed());
+			currentChampion.addProperty("totalGamesNotBanned", enemyChampionInfoEntry.getValue().getTotalPossibleGames() - enemyChampionInfoEntry.getValue().getGamesBanned());
 			currentChampion.addProperty("gamesLost", enemyChampionInfoEntry.getValue().getGamesLost());
+			// not needed but kept for continuity
 			currentChampion.addProperty("gamesBanned", enemyChampionInfoEntry.getValue().getGamesBanned());
 
 			enemyChampions.add(currentChampion);
@@ -48,7 +68,7 @@ public class JsonUtility
 		championJson.add("selectedChampion", selectedChampionJson);
 		championJson.add("enemyChampions", enemyChampions);
 
-		logger.info("selected mock champion results: " + championJson.toString());
+		logger.info("selected champion results: " + championJson.toString());
 
 		return  championJson.toString();
 	}
