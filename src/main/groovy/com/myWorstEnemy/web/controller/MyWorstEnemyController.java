@@ -345,7 +345,7 @@ public class MyWorstEnemyController
 		{
 			StaticDataService staticDataService = new StaticDataService(namedParameterJdbcTemplate);
 
-			String patchVersion = "10.5.1";
+			String patchVersion = api.getStaticLastPatchVersion();
 
 			// Delete all rows from champions table
 			if (!staticDataService.deleteChampionsTableRows())
